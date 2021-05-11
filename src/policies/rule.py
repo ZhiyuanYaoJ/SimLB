@@ -11,17 +11,10 @@ class NodeLBLSQ(NodeLB):
         self.po2 = po2 # power-of-2-choices
 
 
-    def choose_child(self, flow, nodes=None, ts=None):
+    def choose_child(self, flow):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(*flow.fields, self._bucket_table, self._bucket_mask)
         n_flow_on = self._counters['n_flow_on']
-
-        print("=== lsq (@{}) ===".format(self.id))
-        print("score:", n_flow_on[self.child_ids])
-        gt = self.get_ground_truth(nodes, ts, flow)
-        print("n_flow:", gt['n_flow'])
-        print("t_remain:", gt['t_remain'])
-
         if self.debug > 1:
             print("@nodeLBLSQ {} - n_flow_on: {}".format(self.id, n_flow_on))
         # assert len(set(self.child_ids)) == len(self.child_ids)
@@ -41,26 +34,24 @@ class NodeLBLSQ(NodeLB):
             del n_flow_map
         return child_id, bucket_id
 
+
 class NodeLBSED(NodeLB):
+    '''
+    @brief:
+        Shortest Expected Delay (SED) assigns server based on (queue_len+1)/weight.
+    '''
+
     def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
                          max_n_child, T0, reward_option, ecmp, child_prefix, debug)
         self.po2 = po2  # power-of-2-choices
         self.b_offset = b_offset
 
-    def choose_child(self, flow, nodes=None, ts=None):
+    def choose_child(self, flow):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
             *flow.fields, self._bucket_table, self._bucket_mask)
         n_flow_on = self._counters['n_flow_on']
-
-        print("=== sed (@{}) ===".format(self.id))
-        print("score:", [(self.b_offset+n_flow_on[i])/self.weights[i]
-                         for i in self.child_ids])
-        gt = self.get_ground_truth(nodes, ts, flow)
-        print("n_flow:", gt['n_flow'])
-        print("t_remain:", gt['t_remain'])
-
         if self.debug > 1:
             print("@nodeLBLSQ {} - n_flow_on: {}".format(self.id, n_flow_on))
         # assert len(set(self.child_ids)) == len(self.child_ids)
@@ -71,15 +62,16 @@ class NodeLBSED(NodeLB):
             if self.debug > 1:
                 print("n_flow_on chosen {} out of -".format(child_id), n_flow_on_2)
         else:
-            n_flow_on = [(self.b_offset+n_flow_on[i])/self.weights[i]
+            score = [(self.b_offset+n_flow_on[i])/self.weights[i]
                          for i in self.child_ids]
-            min_n_flow = min(n_flow_on)
-            n_flow_map = zip(self.child_ids, n_flow_on)
+            
+            min_n_flow = min(score)
+            n_flow_map = zip(self.child_ids, score)
             min_ids = [k for k, v in n_flow_map if v == min_n_flow]
             child_id = random.choice(min_ids)
             if self.debug > 1:
-                n_flow_map = zip(self.child_ids, n_flow_on)
-                print("n_flow_on chosen minimum {} from {}".format(
+                n_flow_map = zip(self.child_ids, score)
+                print("score chosen minimum {} from {}".format(
                     child_id, '|'.join(['{}: {}'.format(k, v) for k, v in n_flow_map])))
             del n_flow_map
         return child_id, bucket_id
@@ -87,12 +79,13 @@ class NodeLBSED(NodeLB):
 class NodeLBSRT(NodeLB):
     '''
     @brief:
-        select AS based on shortest remaining job to do
+        Shortest remaining time (SRT) assigns AS based on sum(cpu_processing_time)/#cpu + sum(io_processing_time)/#io
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
                          max_n_child, T0, reward_option, ecmp, child_prefix, debug)
+        self.po2 = po2
 
     def choose_child(self, flow, t_rest_all):
         
@@ -103,10 +96,17 @@ class NodeLBSRT(NodeLB):
         if self.debug > 1:
             print("@nodeLBOracle {} - n_flow_on: {}".format(self.id, n_flow_on))
         # assert len(set(self.child_ids)) == len(self.child_ids) 
-        min_t_rest = min(t_rest_all)
         t_rest_map = zip(self.child_ids, t_rest_all)
-        min_ids = [k for k, v in t_rest_map if v == min_t_rest]
-        child_id = random.choice(min_ids)
+        
+        if self.po2:
+            t_rest_2 = {i: t_rest_all[i] for i in random.sample(self.child_ids, 2)}
+            child_id = min(t_rest_2, key=t_rest_2.get)
+            if self.debug > 1:
+                print("n_flow_on chosen {} out of -".format(child_id), t_rest_2)
+        else:
+            min_t_rest = min(t_rest_all)
+            min_ids = [k for k, v in t_rest_map if v == min_t_rest]
+            child_id = random.choice(min_ids)
         if self.debug > 1:
             print("t_rest chosen minimum {} from {}".format(
                 child_id, '|'.join(['{}: {}'.format(k, v) for k, v in t_rest_map])))
@@ -122,11 +122,11 @@ class NodeLBSRT(NodeLB):
         flow.update_receive(ts, self.id)
 
         # select based on actual 
-        t_rest_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts, flow)
-                        for i in self.child_ids]       
+        t_rest_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts)
+                        for i in self.child_ids]
         child_id, bucket_id = self.choose_child(flow, t_rest_all)
 
-        # self.evaluate_decision_ground_truth(nodes, child_id, flow)
+        # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
         if RENDER_RECEIVE:
             self.render_receive(ts, flow, child_id, nodes)
 
@@ -175,7 +175,8 @@ class NodeLBGSQ(NodeLB):
             print("@nodeLBOracle {} - n_flow_on: {}".format(self.id, n_flow_on))
         n_flow_map = zip(self.child_ids, qlen_all)
         if self.po2:
-            n_flow_on_2 = {i: v for i, v in n_flow_map}
+            n_flow_on_2 = {i: qlen_all[i]
+                           for i in random.sample(self.child_ids, 2)}
             child_id = min(n_flow_on_2, key=n_flow_on_2.get)
             if self.debug > 1:
                 print("n_flow_on chosen {} out of -".format(child_id), n_flow_on_2)
@@ -202,7 +203,7 @@ class NodeLBGSQ(NodeLB):
                         for i in self.child_ids]       
         child_id, bucket_id = self.choose_child(flow, qlen_all)
 
-        # self.evaluate_decision_ground_truth(nodes, child_id, flow)
+        # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
         if RENDER_RECEIVE:
             self.render_receive(ts, flow, child_id, nodes)
 

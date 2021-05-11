@@ -19,14 +19,12 @@ from config.global_conf import *
 from common.utils import *
 
 Event = namedtuple('Event', 'time name added_by kwargs')
-Gaussian = namedtuple('Gaussian', ['mean', 'var'])
-Gaussian.__repr__ = lambda s: '𝒩(μ={:.3f}, 𝜎²={:.3f})'.format(s[0], s[1])
 
 class Flow:
     '''
     @brief:
-        Flows are stored in tuple format and this simple implementation of network 
-        flow class helps interpret the tuple and update given fields under various events.
+        This class helps instantiate network flows with key informations including timestamps, traversed nodes, *etc*.
+        Relevant information (*e.g.* timestamps, nexthop, residual processing time) will be updated on reception/forward events.
     '''
 
     def __init__(self, id, ts, nexthop, fct, fct_type='cpu', fields=[]):
@@ -73,6 +71,7 @@ class Flow:
             if 'reject' in self.nexthop:
                 info += ' (rejected)'
 
+            info += " | FCT: " + str(self.fct)
             info += " | " + str(self.note)
             
         else:
@@ -150,8 +149,8 @@ class DistributionFCT(object):
         fct_type_kwargs = {
             "exp": ["mu"],
             "normal": ["mu", "std"],
-            "uniform": ["mu", "std"],
-            "lognormal": ["mu", "std"]
+            "lognormal": ["mu", "std"],
+            "uniform": ["mu", "std"]
         }
 
         assert fct_type in all_types_fct
@@ -484,7 +483,7 @@ class NodeAS(Node):
             self.pending_fct['cpu'] -= sum(flow.fct[::2])
             self.pending_fct['io'] -= sum(flow.fct[1::2])
 
-    def get_t_rest_total(self, ts, flow=None):
+    def get_t_rest_total(self, ts):
         '''
         @brief:
             calculate total (unit) processing time left for all applications
@@ -511,26 +510,10 @@ class NodeAS(Node):
                     t_rest[target] += sum(flow.fct[(flow.fct_index+2)::2])
                     t_rest[list(self.process_type - set([target]))[0]] += sum(flow.fct[(flow.fct_index+1)::2])
         
-
         # process fcts in the pending 
         for target in ['cpu', 'io']:
             t_rest[target] += self.pending_fct[target]
-
-        # if flow:
-        #     t_rest['cpu'] += sum(flow.fct[::2])
-        #     t_rest['io'] += sum(flow.fct[1::2])
-
         t_rest_all = t_rest['cpu'] / self.n_worker + t_rest['io'] # total time rest to process
-
-        # for debug
-        # print('='*10 + "as {}".format(self.id), '='*10)
-        # for target in ["cpu", "io"]:
-        #     print('{} queue'.format(target))
-        #     self.queues[target].print_queue()
-        #     print("pending_fct {}: {:.3f}s".format(target, self.pending_fct[target]))
-        # print('wait queue length {}'.format(self.queues['wait'].qsize()))
-        # print("t_rest_all = t_rest['cpu']({:.3f}s) / n_worker({}) + t_rest['io']({:.3f}s) = {:.3f}s".format(t_rest['cpu'], self.n_worker, t_rest['io'], t_rest_all))
-
         return t_rest_all
 
     def calcul_process_speed(self, n_flows2add=0, target='cpu'):
@@ -849,11 +832,9 @@ class NodeLB(NodeStatelessLB):
             'n_flow_on': np.zeros(self.max_n_child)
         }
         self._reservoir = {
-            # flow duration
-            'fd': [ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)],
-            # flow complete time
-            'fct': [ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)],
+            k: [ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)] for k in RESERVOIR_AS_KEYS
         }
+        self._reservoir.update({k: ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for k in RESERVOIR_LB_KEYS})
         self._res_max_ts = 0.
 
         if self.debug > 1:
@@ -901,21 +882,35 @@ class NodeLB(NodeStatelessLB):
                     print('--- {} {} ---'.format(self.child_prefix, i))
                     print(self._reservoir['fd'][i].get_info())
 
+    def calcul_reward(self, ts, reward_field=REWARD_FEATURE):
+        '''
+        @brief: calculate reward using a given REWARD FEATURE
+        '''
+        feature_all = self.get_observation(ts)
+        feature_reward = feature_all[reward_field][self.child_ids]
+        return self.reward_fn(feature_reward)
+
     def get_observation(self, ts):
 
         # initialization
         res = self._counters
 
         for k, v in self._reservoir.items():
-            summaries = []
-            for i in range(self.max_n_child):
-                summaries.append(v[i].summary(ts))
-            for kk in RESERVOIR_SUMMARY_KEYS:
-                res.update({'res_{}_{}'.format(k, kk): np.array([
-                           summaries[i][kk] for i in range(self.max_n_child)])})
+            # for server reservoir buffers
+            if isinstance(v, list):
+                summaries = []
+                for i in range(self.max_n_child):
+                    summaries.append(v[i].summary(ts))
+                for kk in REDUCE_METHODS:
+                    res.update({'res_{}_{}'.format(k, kk): np.array([
+                            summaries[i][kk] for i in range(self.max_n_child)])})
+            else:
+                summaries = v.summary(ts)
+                for kk in REDUCE_METHODS:
+                    res.update({'res_{}_{}'.format(k, kk): summaries[kk]})
         return res
 
-    def choose_child(self, flow, nodes=None, ts=None):
+    def choose_child(self, flow):
         # random select 
         bucket_id, child_id = self._ecmp(*flow.fields, self._bucket_table, self._bucket_mask)
         return child_id, bucket_id
@@ -923,7 +918,7 @@ class NodeLB(NodeStatelessLB):
     def get_ground_truth(self, nodes, ts, flow):
         gt = {
             "n_flow": [nodes["{}{}".format(self.child_prefix, i)].get_n_flow_on() for i in self.child_ids],
-            "t_remain": [nodes["{}{}".format(self.child_prefix, i)].get_t_rest_total(ts, flow) for i in self.child_ids]
+            "t_remain": [nodes["{}{}".format(self.child_prefix, i)].get_t_rest_total(ts) for i in self.child_ids]
         }
         return gt
 
@@ -949,6 +944,7 @@ class NodeLB(NodeStatelessLB):
             print("n_flow_on_obs_avg={}".format(n_flow_on_obs_avg))
             print("n_flow_on_obs={}".format(n_flow_on_obs))
             print(self._counters['n_flow_on'])
+        return flow
 
 
     def receive(self, ts, flow, nodes):
@@ -960,9 +956,9 @@ class NodeLB(NodeStatelessLB):
         flow.update_receive(ts, self.id)
         
         # random select 
-        child_id, bucket_id = self.choose_child(flow, nodes, ts)
+        child_id, bucket_id = self.choose_child(flow)
 
-        # self.evaluate_decision_ground_truth(nodes, child_id, flow)
+        # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
         if RENDER_RECEIVE: self.render_receive(ts, flow, child_id, nodes)
 
         # we hook reservoir sampling process with receive, whenever a new flow is received, we update the flow duration in reservoir sampling
@@ -1139,9 +1135,9 @@ class NodeClient(Node):
             0), np.empty(0), np.empty(0), np.empty(0)
         res, lr_pairs_dict = {}, {}
         # note_is_info = {
-        #     'is_shortest': 0,
-        #     'is_shorter_than_avg': 0,
-        #     'is_shorter_than_median': 0,
+            # 'is_shortest': 0,
+            # 'is_shorter_than_avg': 0,
+            # 'is_shorter_than_median': 0,
         # }
         # note_deviation = np.empty(0)
         for flow in self.flows:
@@ -1156,7 +1152,7 @@ class NodeClient(Node):
             else:
                 lr_pairs_dict[as_node] = [(flow.tss[-2], flow.tss[-1])]
             # for k in note_is_info.keys():
-                # if flow.note[k]: note_is_info[k] += 1
+            #     if flow.note[k]: note_is_info[k] += 1
             # note_deviation = np.append(note_deviation, flow.note['deviation'])
         
         # process gathered info

@@ -1,7 +1,8 @@
 from common.entities import NodeAS, NodeClient, NodeStatelessLB, NodeLB
 from policies.rule import NodeLBLSQ, NodeLBSED, NodeLBSRT, NodeLBGSQ, NodeLBActive
-from policies.heuristic import NodeHLB, NodeHLBada
-
+from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada
+from policies.rl_sac import NodeRLBSAC
+from config.global_conf import KF_CONF
 
 # ---------------------------------------------------------------------------- #
 #                             Register All Policies                            #
@@ -9,58 +10,96 @@ from policies.heuristic import NodeHLB, NodeHLBada
 
 # ---------------------------------- Methods --------------------------------- #
 
-METHODS = [
-    'ecmp',  # ECMP
-    'weight',  # Static Weight
-    'lsq',  # Local shortest queue (LSQ)
-    'lsq2',  # Local shortest queue (LSQ) + power-of-2-choices
-    # 'weightlsq',  # LSQ
-    # 'weightlsq2',  # LSQ + power-of-2-choices
-    # 'heuristiclsq',  # LSQ
-    # 'heuristiclsq2',  # LSQ + power-of-2-choices
-    # 'kf1dlsq',  # LSQ
-    # 'kf1dlsq2',  # LSQ + power-of-2-choices
-    'sed',  # LSQ
-    'sed2',  # LSQ + power-of-2-choices
-    # 'heuristiclsq-dev',  # LSQ
-    # 'heuristiclsq2-dev',  # LSQ + power-of-2-choices
-    'hlb',  # LSQ
-    'hlb2',  # LSQ + power-of-2-choices
-    'oracle',  # a god-like LB that knows remaining
-    'gsq',  # a god-like LB that knows remaining
-    'gsq2',  # a god-like LB that knows remaining
-    'hlb-ada', # KF1d + LSQ w/ adaptive sensor error
-    'active-wcmp',  # KF1d + LSQ w/ adaptive sensor error
-]
+METHODS = {
+    #=== rule-based ===#
+    "ecmp": { # Equal-Cost Multi-Path (ECMP)
+        "class": NodeLB,
+    }, 
+    "wcmp": { # Weightd-Cost Multi-Path (WCMP)
+        "class": NodeLB,    
+        "config": {
+            "weights": {} # initialize weights based on number of workers
+        }    
+    },
+    "lsq": { # Local shortest queue (LSQ)
+        "class": NodeLBLSQ,
+    },
+    "lsq2": { # LSQ + power-of-2-choices
+        "class": NodeLBLSQ,
+        "config": {
+            "po2": True,
+        }
+    },
+    "sed": { # Shortest Expected Delay
+        "class": NodeLBSED,
+        "config": {
+            "weights": {} # initialize weights based on number of workers
+        }    
+    },
+    "sed2": { # LSQ + power-of-2-choices
+        "class": NodeLBSED,
+        "config": {
+            "weights": {}, # initialize weights based on number of workers
+            "po2": True,
+        },
+    },
+    "srt": { # Shortest Remaining Time (SRT) (Layer-7)
+        "class": NodeLBSRT,
+    },
+    "srt2": { # SRT + power-of-2-choices
+        "class": NodeLBSRT,
+        "config": {
+            "po2": True,
+        },
+    },
+    "gsq": { # Global shortest queue (GSQ) (Layer-7)
+        "class": NodeLBGSQ,
+    },
+    "gsq2": { # GSQ + power-of-2-choices
+        "class": NodeLBGSQ,
+        "config": {
+            "po2": True,
+        },
+    },
+    "active-wcmp": { # Spotlight, adjust weights based on periodic polling
+        "class": NodeLBActive,
+        "config": {
+            "lb_period": 0.5,
+        },
+    },
+    #=== heuristic ===#
+    "aquarius": { # Aquarius, 
+        "class": NodeLBAquarius,
+    },
+    "hlb": { # Hybrid LB (HLB), Aquarius replacing alpha by Kalman filter
+        "class": NodeHLB,
+        "config": {
+            "sensor_std": KF_CONF['sensor_std'],
+        }
+    },
+    "hlb2": { # HLB + power-of-2-choices
+        "class": NodeHLB,
+        "config": {
+            "sensor_std": KF_CONF['sensor_std'],
+            "po2": True,
+        },
+    },
+    "hlb-ada": { # HLB + adaptive sensor error
+        "class": NodeHLBada,
+        "config": {
+            "sensor_std": KF_CONF['sensor_std'],
+        }
+    },
+    "rlb-sac": { # SAC model
+        "class": NodeRLBSAC,
+    }
+}
 
 NODE_MAP = {
-    'clt': NodeClient,
-    'er': NodeStatelessLB,
-    'lb': NodeLB,  # Maglev
-    'as': NodeAS,
-    # --------------------------------- Policies --------------------------------- #
-    'lb-ecmp': NodeLB,  # ECMP
-    'lb-weight': NodeLB,  # Static Weight
-    'lb-lsq': NodeLBLSQ,  # Local shortest queue (LSQ)
-    'lb-lsq2': NodeLBLSQ,  # Local shortest queue (LSQ) + power-of-2-choices
-    # 'lb-misconfig': NodeLBMisconf,  # Misconfigured
-    # 'lb-heuristic': NodeLBHeuristic,  # Heuristic
-    # 'lb-kf1d': NodeLBKF1D,  # 1D Kalman-Filter-Based (KF1D) LB
-    # 'lb-weightlsq': NodeLBWeightLSQ,  # weighted LSQ
-    # 'lb-weightlsq2': NodeLBWeightLSQ,  # weighted LSQ + power-of-2-choices
-    # 'lb-heuristiclsq': NodeLBHeuristicLSQ,  #, NodeLBHeuristicLSQ Heuristic LSQ
-    # 'lb-heuristiclsq2': NodeLBHeuristicLSQ,  # Heuristic LSQ + power-of-2-choices
-    # 'lb-kf1dlsq': NodeLBKF1DLSQ,  # KF1D LSQ
-    # 'lb-kf1dlsq2': NodeLBKF1DLSQ,  # KF1D LSQ + power-of-2-choices
-    'lb-sed': NodeLBSED,  # weighted LSQ
-    'lb-sed2': NodeLBSED,  # weighted LSQ + power-of-2-choices
-    # 'lb-heuristiclsq-dev': NodeLBHeuristicLSQdev,  # Heuristic LSQ
-    # 'lb-heuristiclsq2-dev': NodeLBHeuristicLSQdev,  # Heuristic LSQ + power-of-2-choices
-    'lb-hlb': NodeHLB,  # KF1D LSQ
-    'lb-hlb2': NodeHLB,  # KF1D LSQ + power-of-2-choices
-    'lb-oracle': NodeLBSRT,  # KF1D LSQ + power-of-2-choices
-    'lb-gsq': NodeLBGSQ,  # Oracle global shortest queue 
-    'lb-gsq2': NodeLBGSQ,  # Oracle global shortest queue + power-of-2-choices
-    'lb-hlb-ada': NodeHLBada,  # adaptive KF1D LSQ
-    'lb-active-wcmp': NodeLBActive,  # active probing KF1D LSQ
+    "clt": NodeClient,
+    "er": NodeStatelessLB,
+    "as": NodeAS,
 }
+
+# add lb policies
+NODE_MAP.update({"lb-{}".format(k): v['class'] for k,v in METHODS.items()})

@@ -73,7 +73,7 @@ class ReplayBuffer(object):
             action: 1d tensor w/ length=action_dim
             reward: scalar
         @dev:
-            for now we don't consider gt at all w/ RL
+            for now we don't consider gt at all w/ RL, that is gt=None
         '''
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)

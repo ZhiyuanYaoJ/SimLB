@@ -2,34 +2,110 @@ import time
 import random
 import numpy as np
 from common.utils import softmax
-from common.entities import Gaussian, NodeLB
+from common.entities import NodeLB, namedtuple
 from config.global_conf import ACTION_DIM, RENDER, LB_PERIOD, HEURISTIC_FEATURE, HEURISTIC_ALPHA, KF_CONF, B_OFFSET
 
-class NodeLBKF1D(NodeLB):
+Gaussian = namedtuple('Gaussian', ['mean', 'var'])
+Gaussian.__repr__ = lambda s: '𝒩(μ={:.3f}, 𝜎²={:.3f})'.format(s[0], s[1])
+
+class NodeLBAquarius(NodeLB):
     '''
     @brief:
-        Kalman Filter solution for simulated load balancer.
+        Aquarius: replacing weights by inference based on reservoir-sampled flow durations, soft-update using alpha
+    '''
+
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, debug=0):
+        super().__init__(id, child_ids, bucket_size, weights,
+                         max_n_child, T0, reward_option, ecmp, child_prefix, debug)
+        self.po2 = po2  # power-of-2-choices
+        self.b_offset = b_offset
+        self.feature2use = HEURISTIC_FEATURE
+        self.alpha = HEURISTIC_ALPHA
+
+        assert 0 < self.alpha <= 1
+
+    def step(self, ts, nodes=None):
+        '''
+        @brief:
+            core algorithm for updating weights, in two steps:
+                1. generate an inferred new state (weights) from observations (reservoir sampled flow duration)
+                2. data fusion of new and old states
+        '''
+        # step 1: prediction
+        obs = self.get_observation(ts)
+        new_state = softmax(-obs[self.feature2use][self.child_ids])
+        new_weights = np.zeros(self.max_n_child)
+        new_weights[self.child_ids] = new_state
+        if self.debug > 1:
+            print(">> ({:.3f}s) in {}: origin weights {} - new weights {}".format(
+                ts, self.__class__, self.weights[self.child_ids], new_weights[self.child_ids]))
+
+
+        # step 2: apply weights
+        self.weights = self.alpha*new_weights+(1-self.alpha)*self.weights
+        if self.debug > 1:
+            print(">> ({:.3f}s) in {}: updated weights {}".format(
+                ts, self.__class__, self.weights[self.child_ids]))
+        if RENDER:
+            self.render(ts, nodes)
+        ts += self.get_process_delay()
+        self.register_event(ts, 'lb_update_bucket', {'node_id': self.id})
+        self.register_event(ts + LB_PERIOD,
+                            'lb_step', {'node_id': self.id})
+
+    def choose_child(self, flow):
+        # we still need to generate a bucket id to store the flow
+        bucket_id, _ = self._ecmp(
+            *flow.fields, self._bucket_table, self._bucket_mask)
+        n_flow_on = self._counters['n_flow_on']
+        if self.debug > 1:
+            print("@nodeHLB {} - n_flow_on: {}".format(self.id, n_flow_on))
+        # assert len(set(self.child_ids)) == len(self.child_ids)
+        if self.po2:
+            n_flow_on_2 = {i: (self.b_offset+n_flow_on[i])/self.weights[i]
+                           for i in random.sample(self.child_ids, 2)}
+            child_id = min(n_flow_on_2, key=n_flow_on_2.get)
+            if self.debug > 1:
+                print("n_flow_on chosen {} out of -".format(child_id), n_flow_on_2)
+        else:
+            n_flow_on = [(self.b_offset+n_flow_on[i])/self.weights[i]
+                         for i in self.child_ids]
+            min_n_flow = min(n_flow_on)
+            n_flow_map = zip(self.child_ids, n_flow_on)
+            min_ids = [k for k, v in n_flow_map if v == min_n_flow]
+            child_id = random.choice(min_ids)
+            if self.debug > 1:
+                n_flow_map = zip(self.child_ids, n_flow_on)
+                print("n_flow_on chosen minimum {} from {}".format(
+                    child_id, '|'.join(['{}: {}'.format(k, v) for k, v in n_flow_map])))
+            del n_flow_map
+        return child_id, bucket_id
+
+class NodeHLB(NodeLB):
+    '''
+    @brief:
+        Replacing soft-update alpha in Aquarius by Kalman filter
     '''
 
     def __init__(
-        self,
-        id,
-        child_ids,
-        bucket_size=65536,
-        weights=None,
-        max_n_child=ACTION_DIM,
-        T0=time.time(),
-        reward_option=2,
-        ecmp=False,
-        child_prefix='as',
-        system_mean=KF_CONF['system_mean'],
-        system_std=KF_CONF['system_std'],
-        sensor_std=KF_CONF['sensor_std'],
-        debug=0,
-        lb_period=LB_PERIOD,
-    ):
+            self,
+            id,
+            child_ids,
+            bucket_size=65536,
+            weights=None,
+            max_n_child=ACTION_DIM,
+            T0=time.time(),
+            reward_option=2,
+            ecmp=False,
+            child_prefix='as',
+            system_mean=KF_CONF['system_mean'],
+            system_std=KF_CONF['system_std'],
+            sensor_std=KF_CONF['sensor_std'],
+            po2=False,
+            b_offset=B_OFFSET,
+            debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, debug, lb_period)
+                        max_n_child, T0, reward_option, ecmp, child_prefix, debug)
 
         self.feature2use = HEURISTIC_FEATURE
         self.system_var = system_std**2
@@ -37,6 +113,9 @@ class NodeLBKF1D(NodeLB):
         self.process_model = Gaussian(system_mean, self.system_var)
         self.sensor_var = sensor_std**2
         self.reset_local()
+        
+        self.po2 = po2  # power-of-2-choices
+        self.b_offset = b_offset
 
     def predict(self, pos, movement):
         return Gaussian(pos.mean + movement.mean, pos.var + movement.var)
@@ -74,6 +153,8 @@ class NodeLBKF1D(NodeLB):
         # step 1: prediction
         obs = self.get_observation(ts)
         feature = obs[self.feature2use][self.child_ids]
+        # print(">> {} : ".format(self.feature2use)+str(feature))
+
         new_state = feature/(feature.mean()+1e-9)
         self.zs[self.child_ids] = new_state  # update measurement array
 
@@ -94,15 +175,18 @@ class NodeLBKF1D(NodeLB):
         # step 2: apply weights
         self.weights[self.child_ids] = softmax(-new_weights[self.child_ids])
 
-        print(">> ({:.3f}s) in {}: new weights {}".format(
-            ts, self.__class__, self.weights[self.child_ids]))
-
+        # print(">> ({:.3f}s) in {}: new weights {}".format(
+        #     ts, self.__class__, self.weights[self.child_ids]))
+        
         if RENDER:
             self.render(ts, nodes)
         ts += self.get_process_delay()
         self.register_event(ts, 'lb_update_bucket', {'node_id': self.id})
-        self.register_event(ts + self.lb_period,
+        self.register_event(ts + LB_PERIOD,
                             'lb_step', {'node_id': self.id})
+
+        print(">> ({:.3f}s) in {}: new weights {}".format(
+                ts, self.__class__, new_weights[self.child_ids]))
 
     def add_child(self, child_id, weights=None):
         super().add_child(child_id, weights)
@@ -111,47 +195,14 @@ class NodeLBKF1D(NodeLB):
         self.ps[child_id] = 0  # variance of estimation
         self.zs[child_id] = 0  # latest measurements
 
-class NodeHLB(NodeLBKF1D):
-    def __init__(
-            self,
-            id,
-            child_ids,
-            bucket_size=65536,
-            weights=None,
-            max_n_child=ACTION_DIM,
-            T0=time.time(),
-            reward_option=2,
-            ecmp=False,
-            child_prefix='as',
-            system_mean=KF_CONF['system_mean'],
-            system_std=KF_CONF['system_std'],
-            sensor_std=KF_CONF['sensor_std'],
-            po2=False,
-            b_offset=B_OFFSET,
-            debug=0,
-            lb_period=LB_PERIOD,
-    ):
-        super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, system_mean, system_std, sensor_std, debug, lb_period)
-        self.po2 = po2  # power-of-2-choices
-        self.b_offset = b_offset
-        self.lb_period = lb_period
-
     def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
             *flow.fields, self._bucket_table, self._bucket_mask)
         n_flow_on = self._counters['n_flow_on']
         if self.debug > 1:
-            print("@nodeLBLSQ {} - n_flow_on: {}".format(self.id, n_flow_on))
+            print("@nodeHLB {} - n_flow_on: {}".format(self.id, n_flow_on))
         # assert len(set(self.child_ids)) == len(self.child_ids)
-
-        print("=== hlb-ada (@{}) ===".format(self.id))
-        print("score:", [(self.b_offset+n_flow_on[i])/self.weights[i]
-                         for i in self.child_ids])
-        gt = self.get_ground_truth(nodes, ts, flow)
-        print("n_flow:", gt['n_flow'])
-        print("t_remain:", gt['t_remain']) 
 
         if self.po2:
             n_flow_on_2 = {i: (self.b_offset+n_flow_on[i])/self.weights[i]
@@ -160,14 +211,17 @@ class NodeHLB(NodeLBKF1D):
             if self.debug > 1:
                 print("n_flow_on chosen {} out of -".format(child_id), n_flow_on_2)
         else:
-            n_flow_on = [(self.b_offset+n_flow_on[i])/self.weights[i]
+            score = [(self.b_offset+n_flow_on[i])/self.weights[i]
+                            for i in self.child_ids]
+            
+            score = [(self.b_offset+score[i])/self.weights[i]
                          for i in self.child_ids]
-            min_n_flow = min(n_flow_on)
-            n_flow_map = zip(self.child_ids, n_flow_on)
+            min_n_flow = min(score)
+            n_flow_map = zip(self.child_ids, score)
             min_ids = [k for k, v in n_flow_map if v == min_n_flow]
             child_id = random.choice(min_ids)
             if self.debug > 1:
-                n_flow_map = zip(self.child_ids, n_flow_on)
+                n_flow_map = zip(self.child_ids, score)
                 print("n_flow_on chosen minimum {} from {}".format(
                     child_id, '|'.join(['{}: {}'.format(k, v) for k, v in n_flow_map])))
             del n_flow_map
@@ -175,6 +229,11 @@ class NodeHLB(NodeLBKF1D):
 
 
 class NodeHLBada(NodeHLB):
+    '''
+    @brief:
+        Replacing soft-update alpha in Aquarius by Kalman filter with an adaptive measuremnet error
+    '''
+
     def __init__(
             self,
             id,
@@ -186,20 +245,19 @@ class NodeHLBada(NodeHLB):
             reward_option=2,
             ecmp=False,
             child_prefix='as',
+            lb_period=LB_PERIOD,
             system_mean=KF_CONF['system_mean'],
             system_std=KF_CONF['system_std'],
             sensor_std=KF_CONF['sensor_std'],
             po2=False,
             b_offset=B_OFFSET,
-            debug=0,
-            lb_period=LB_PERIOD,
-    ):
+            debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
                          max_n_child, T0, reward_option, ecmp, child_prefix, system_mean, system_std, sensor_std, debug, lb_period)
         self.po2 = po2  # power-of-2-choices
         self.b_offset = b_offset
-        self.lb_period = lb_period
 
+    
     def step(self, ts, nodes=None):
         '''
         @brief:
@@ -211,6 +269,9 @@ class NodeHLBada(NodeHLB):
         # step 1: prediction
         obs = self.get_observation(ts)
         feature = obs[self.feature2use][self.child_ids]
+
+        print(">> {} : ".format(self.feature2use)+str(feature))
+
         new_state = feature/(feature.mean()+1e-9)
         self.zs[self.child_ids] = new_state  # update measurement array
 
@@ -221,21 +282,24 @@ class NodeHLBada(NodeHLB):
                 prior, Gaussian(self.zs[child_id], self.sensor_var))
             new_weights[child_id] = self.xs[child_id].mean
             self.ps[child_id] = self.xs[child_id].var
-        # if self.debug > 1:
-        
-        print(">> Kalman Gain = {}".format(self.xs[child_id].var/(self.xs[child_id].var+self.sensor_var)))
+        if self.debug > 1:
+            print(">> ({:.3f}s) in {}: origin weights {} - new weights {}".format(
+                ts, self.__class__, self.weights[self.child_ids], new_weights[self.child_ids]))
+
+        # print(">> Kalman Gain = {}".format(
+        #     self.xs[child_id].var/(self.xs[child_id].var+self.sensor_var)))
 
         # step 2: apply weights
         self.weights[self.child_ids] = softmax(-new_weights[self.child_ids])
 
-        print(">> ({:.3f}s) in {}: new weights {}".format(
-            ts, self.__class__, self.weights[self.child_ids]))
+        print(">> ({:.3f}s) in {}: new weights".format(
+            ts, self.__class__)+str(self.weights[self.child_ids]))
 
         if RENDER:
             self.render(ts, nodes)
         ts += self.get_process_delay()
         self.register_event(ts, 'lb_update_bucket', {'node_id': self.id})
-        self.register_event(ts + self.lb_period,
+        self.register_event(ts + LB_PERIOD,
                             'lb_step', {'node_id': self.id})
 
         # step 3: update sensor variance

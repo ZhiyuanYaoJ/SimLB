@@ -301,8 +301,8 @@ reward_options = {
     0: lambda x: 1 - calcul_over(x),
     # option 1: difference between min and max
     1: lambda x: min(x) - max(x),
-    # option 2: Jain's fairness index
-    2: lambda x: calcul_fair(x),
+    # option 2: Jain's fairness index - 1
+    2: lambda x: calcul_fair(x)-1,
 }
 
 def fct_generator(fct_type): 
