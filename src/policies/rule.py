@@ -11,7 +11,7 @@ class NodeLBLSQ(NodeLB):
         self.po2 = po2 # power-of-2-choices
 
 
-    def choose_child(self, flow):
+    def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(*flow.fields, self._bucket_table, self._bucket_mask)
         n_flow_on = self._counters['n_flow_on']
@@ -47,7 +47,7 @@ class NodeLBSED(NodeLB):
         self.po2 = po2  # power-of-2-choices
         self.b_offset = b_offset
 
-    def choose_child(self, flow):
+    def choose_child(self, flow, nodes=None,ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
             *flow.fields, self._bucket_table, self._bucket_mask)

@@ -15,6 +15,8 @@ import time
 from inspect import getfullargspec
 from collections import namedtuple
 from heapq import heappush, heappop, heapify
+
+from numpy import savez_compressed
 from config.global_conf import *
 from common.utils import *
 
@@ -447,6 +449,10 @@ class NodeAS(Node):
         self.process_type = set(['cpu', 'io']) # two different processing models
         self.queues = {}
 
+        self.start_proc_time = {} # start processing time
+        self.avg_proc_time = 0 # average processing time
+        self.n_proc = 0 # number processes to compute average processing time
+
         self.reset()
     
     def reset(self):
@@ -468,9 +474,27 @@ class NodeAS(Node):
             'io': 0,
         }
 
+        self.avg_proc_time = 0
+        self.n_proc = 0
+        self.start_proc_time = {}
+
     def get_n_flow_on(self):
         n_flow = [q.qsize() for k, q in self.queues.items()]
         return sum(n_flow)
+
+    def get_avg_proc_time(self, ts):
+        n = self.get_n_flow_on()
+        if n==0:
+            return self.avg_proc_time
+        n = 0
+        time = (self.avg_proc_time * self.n_proc) 
+        for k,q in self.queues.items():
+            for flow in q.queue:
+                if isinstance(flow[1],tuple):
+                    time += (ts - float(flow[1][0]))
+                    n +=1
+        time /= (n + self.n_proc)
+        return time
     
     def update_pending_fct(self, flow, add=True):
         '''
@@ -482,6 +506,19 @@ class NodeAS(Node):
         else:
             self.pending_fct['cpu'] -= sum(flow.fct[::2])
             self.pending_fct['io'] -= sum(flow.fct[1::2])
+
+    def update_score(self,score_po2, choice, ts):
+        n_flows = self.get_n_flow_on()
+        proc_time = self.get_avg_proc_time(ts)
+        if proc_time == 0:
+            return 0, choice
+        #score = (n_flows +1)/proc_time
+        score = n_flows
+        if score_po2<score:
+            new_choice = choice ^ 1
+        else:
+            new_choice = choice
+        return score, new_choice
 
     def get_t_rest_total(self, ts):
         '''
@@ -623,11 +660,13 @@ class NodeAS(Node):
                     self.put2wait([flow])
                 else: # directly send this flow to workers                
                     self.update_process_queue(ts, flows2add=[flow], target='cpu')
+                    self.start_proc_time[flow.id] = ts # keeping track of the processing time beginning
                     if self.debug > 1:
                         print('|| @AS {}: add to cpu queue (len={}) | {}!'.format(
                             self.id, self.queues['cpu'].qsize(), flow.get_info()))
             else:
                 self.update_process_queue(ts, flows2add=[flow], target='io')
+                self.start_proc_time[flow.id] = ts # keeping track of processing time beginning
                 if self.debug > 1:
                     print('|| @AS {}: add to io queue (len={}) | {}!'.format(self.id, self.queues['io'].qsize(), flow.get_info()))
             if self.debug > 1:
@@ -645,6 +684,8 @@ class NodeAS(Node):
             assert flow.id == flow_.id
             if flow.update_fct_stage() < 0: # flow is finished
                 self.send2client(ts, flow, flow.src_node)
+                self.avg_proc_time = ((self.avg_proc_time * self.n_proc) + (ts - self.start_proc_time[flow.id]))/(self.n_proc + 1) # update average processing time
+                self.n_proc += 1 # update number of processes
                 if self.debug > 1:
                     print('|| @AS {}: finish process {}!'.format(self.id, flow.get_info()))
             else:
@@ -658,6 +699,8 @@ class NodeAS(Node):
                 if not self.queues['wait'].empty():
                     flows2add.append(self.queues['wait'].pop()[1])
                     update_process_speed = False
+            if len(flows2add) > 0:
+                self.start_proc_time[flows2add[0].id] = ts # keeping track of the processing time beginnin
             self.update_process_queue(
                 ts, flows2add=flows2add, update_process_speed=update_process_speed, target=queue2update_id)
             
@@ -910,7 +953,7 @@ class NodeLB(NodeStatelessLB):
                     res.update({'res_{}_{}'.format(k, kk): summaries[kk]})
         return res
 
-    def choose_child(self, flow):
+    def choose_child(self, flow, nodes=None, ts=None):
         # random select 
         bucket_id, child_id = self._ecmp(*flow.fields, self._bucket_table, self._bucket_mask)
         return child_id, bucket_id
@@ -956,7 +999,7 @@ class NodeLB(NodeStatelessLB):
         flow.update_receive(ts, self.id)
         
         # random select 
-        child_id, bucket_id = self.choose_child(flow)
+        child_id, bucket_id = self.choose_child(flow, nodes,ts)
 
         # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
         if RENDER_RECEIVE: self.render_receive(ts, flow, child_id, nodes)

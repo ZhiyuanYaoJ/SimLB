@@ -11,7 +11,7 @@ from config.node_register import METHODS, NODE_MAP
 #                                      Log                                     #
 # ---------------------------------------------------------------------------- #
 
-LOG_FOLDER = '../../data/simulation' # overwrite
+#LOG_FOLDER = '../data/simulation' # overwrite
 
 # ---------------------------------------------------------------------------- #
 #                                   Topology                                   #

@@ -57,6 +57,7 @@ class Simulator:
         res = {}
         if self.dump_all_flow:
             flow_all = []
+
         for node_id, node in self.nodes.items():
             if 'clt' in node_id:
                 res[node_id] = node.summarize()

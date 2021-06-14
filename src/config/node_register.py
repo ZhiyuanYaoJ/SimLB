@@ -1,6 +1,6 @@
 from common.entities import NodeAS, NodeClient, NodeStatelessLB, NodeLB
 from policies.rule import NodeLBLSQ, NodeLBSED, NodeLBSRT, NodeLBGSQ, NodeLBActive
-from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada
+from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada, NodeLBHermes
 from policies.rl_sac import NodeRLBSAC
 from config.global_conf import KF_CONF
 
@@ -89,6 +89,9 @@ METHODS = {
         "config": {
             "sensor_std": KF_CONF['sensor_std'],
         }
+    },
+    "hermes": { # hermes
+        "class": NodeLBHermes,
     },
     "rlb-sac": { # SAC model
         "class": NodeRLBSAC,

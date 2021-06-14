@@ -3,6 +3,7 @@ from config.user_conf import *
 
 UNIT_TRAFFIC_RATE = 0
 
+
 def init_global_variables(args):
     '''
     @brief: initialize configuration for all the node
@@ -37,7 +38,9 @@ def init_global_variables(args):
         NODE_CONFIG['clt'][i].update({'app_config': app_config}),
 
     # update log folder
-    LOG_FOLDER = args.log_folder
+    global LOG_FOLDER 
+    LOG_FOLDER= args.log_folder
+
 
     # print out basic info
     print("unit traffic rate for current setup: {}".format(UNIT_TRAFFIC_RATE))

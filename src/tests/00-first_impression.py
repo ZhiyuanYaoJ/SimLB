@@ -5,7 +5,7 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 1
+n_thread_max = 32
 counter = None
 query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
     1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[5::3]
@@ -72,38 +72,41 @@ seed = 46
 
 methods = [
     #=== rule ===#
-    # "ecmp", # Equal-Cost Multi-Path (ECMP)
-    # "wcmp", # Weighted-Cost Multi-Path (WCMP)
-    # "lsq", # Local shortest queue (LSQ)
+     "ecmp", # Equal-Cost Multi-Path (ECMP)
+     "wcmp", # Weighted-Cost Multi-Path (WCMP)
+     "lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
-    # "sed", # Shortest Expected Delay
+     "sed", # Shortest Expected Delay
     # "sed2", # LSQ + power-of-2-choices
     # "srt", # Shortest Remaining Time (SRT) (Layer-7)
     # "srt2", # SRT + power-of-2-choices
-    # "gsq", # Global shortest queue (GSQ) (Layer-7)
-    # "gsq2", # GSQ + power-of-2-choices
+     "gsq", # Global shortest queue (GSQ) (Layer-7)
+     "gsq2", # GSQ + power-of-2-choices
     # "active-wcmp", # Spotlight, adjust weights based on periodic polling
     #=== heuristic ===#
     # "aquarius", # Aquarius, 
     # "hlb", # Hybrid LB (HLB), Aquarius replacing alpha by Kalman filter
     # "hlb2", # HLB + power-of-2-choices
     # "hlb-ada", # HLB + adaptive sensor error
+    "hermes", #hermes
     # === reinforcement learning ===#
-    "rlb-sac", # SAC model
+    #"rlb-sac", # SAC model
 ]
 
 # grid search dimensions
 n_lbs = [4]
+n_lbs = [1]
 n_ass = [64]
+n_ass = [20]
 n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
 fct_mus = [0.5] # change this to compare different input traffic distribution
 n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
-n_episode = 1
+n_episode = 5
 fct_io = 0.25
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(8e2)
+n_flow_total = int(5e4)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change bucket size
