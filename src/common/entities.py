@@ -507,7 +507,7 @@ class NodeAS(Node):
             self.pending_fct['cpu'] -= sum(flow.fct[::2])
             self.pending_fct['io'] -= sum(flow.fct[1::2])
 
-    def update_score(self,score_po2, choice, ts):
+    def update_score(self, score_po2, choice, ts):
         n_flows = self.get_n_flow_on()
         proc_time = self.get_avg_proc_time(ts)
         if proc_time == 0:
@@ -960,8 +960,8 @@ class NodeLB(NodeStatelessLB):
 
     def get_ground_truth(self, nodes, ts, flow):
         gt = {
-            "n_flow": [nodes["{}{}".format(self.child_prefix, i)].get_n_flow_on() for i in self.child_ids],
-            "t_remain": [nodes["{}{}".format(self.child_prefix, i)].get_t_rest_total(ts) for i in self.child_ids]
+            "n_flow": np.array([nodes["{}{}".format(self.child_prefix, i)].get_n_flow_on() for i in self.child_ids]).astype(int),
+            "t_remain": np.array([nodes["{}{}".format(self.child_prefix, i)].get_t_rest_total(ts) for i in self.child_ids])
         }
         return gt
 

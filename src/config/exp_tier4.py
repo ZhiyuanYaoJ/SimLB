@@ -67,7 +67,6 @@ def generate_node_config_tier4(
     for i in range(n_worker2change):  # update half as configuration
         as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
 
-
     if 'config' in METHODS[lb_method].keys():
         if 'weights' in METHODS[lb_method]['config'].keys() and METHODS[lb_method]['config']['weights'] == {}:
             METHODS[lb_method]['config']['weights'] = {
@@ -153,4 +152,14 @@ CP_EVENTS2ADD = [
     #         'in_traffic_info_new': {'rate': 20, 'type': 'normal', 'mu': 1.0, 'std': 0.3}
     #     }
     # )
+    (
+        # change second 1/4 AS nodes back to normal worker baseline
+        0.5,
+        'as_periodic_log',
+        'sys-admin',
+        {
+            'node_ids': ['as{}'.format(i) for i in range(64)],
+            'interval': 0.5,
+        }
+    ),
 ]

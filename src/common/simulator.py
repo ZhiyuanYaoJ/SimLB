@@ -6,6 +6,7 @@ from common.entities import *
 from config.global_conf import *
 from config.node_register import METHODS, NODE_MAP
 from pathlib import Path
+from common.alias_method import *
 
 class Simulator:
 
@@ -84,7 +85,8 @@ class Simulator:
         sim_time = 0
         e_next = event_buffer.pop()
         t0 = time.time()
-
+        # t_last = t0
+        
         if self.n_flow_total > 0: # prioritize n_flow_total
             eval2run = "self.n_flow_done < self.n_flow_total"
         else:
@@ -93,6 +95,18 @@ class Simulator:
 
             sim_time, event, added_by, kwargs = e_next
 
+            # t1 = time.time()
+            
+            # if (t1 - t_last > 0.0002):
+            #     f = open("WEIGHTS","r")
+            #     data = f.read().split("\n")
+            #     w = []
+            #     for i in data:
+            #         if i != "":
+            #             w.append(float(i))
+            #     update_alias(w)
+            #     t_last = time.time()
+                        
             if self.debug > 0:
                 print('++=======++')
                 line = '|| EVENT || ({:.3f}s): {} {}'.format(
@@ -130,6 +144,15 @@ class Simulator:
         '''
         assert isinstance(n_episode, int) and n_episode > 0, "Number of episodes should be positive integer"
 
+        
+        
+        # init_alias([1 for i in range(64)]) #wrongfully fixed
+        # file = open("WEIGHTS","w")
+        # for w in [1 for i in range(64)]:
+        #     file.write(str(w) + "\n")
+        # file.close()
+        
+        
         for episode in range(first_episode_id, first_episode_id+n_episode):
             # reset environment
             self.reset()

@@ -73,16 +73,16 @@ seed = 46
 
 methods = [
     #=== rule ===#
-    "ecmp", # Equal-Cost Multi-Path (ECMP)
-    "wcmp", # Weighted-Cost Multi-Path (WCMP)
+    # "ecmp", # Equal-Cost Multi-Path (ECMP)
+    # "wcmp", # Weighted-Cost Multi-Path (WCMP)
     # "lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
     # "sed", # Shortest Expected Delay
     # "sed2", # LSQ + power-of-2-choices
     # "srt", # Shortest Remaining Time (SRT) (Layer-7)
     # "srt2", # SRT + power-of-2-choices
-    "gsq", # Global shortest queue (GSQ) (Layer-7)
-    "gsq2", # GSQ + power-of-2-choices·
+    # "gsq", # Global shortest queue (GSQ) (Layer-7)
+    # "gsq2", # GSQ + power-of-2-choices·
     # "active-wcmp", # Spotlight, adjust weights based on periodic polling
     #=== heuristic ===#
     # "aquarius", # Aquarius, 
@@ -93,13 +93,13 @@ methods = [
     # "rs", # reservoir sampling #flow
     # "rs2", # reservoir sampling #flow + power-of-2
     # "geom", # geometry-based algorithm
-    #"geom-w", # geometry-based algorithm
+    "geom-w", # geometry-based algorithm
     # "prob-flow", # geometry-based algorithm
-    #"prob-flow-w", # geometry-based algorithm
+    "prob-flow-w", # geometry-based algorithm
     # "prob-flow2", # geometry-based algorithm
-    #"prob-flow-w2", # geometry-based algorithm
-    #"geom-sed", # geometry-based algorithm
-    #"geom-sed-w", # geometry-based algorithm
+    "prob-flow-w2", # geometry-based algorithm
+    "geom-sed", # geometry-based algorithm
+    "geom-sed-w", # geometry-based algorithm
     # === reinforcement learning ===#
     #"rlb-sac", # SAC model
 ]
@@ -127,7 +127,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'first-impression-dump-all'
+    experiment_name = 'first-impression'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
@@ -140,7 +140,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
                     if n_process_stage > 1:
                         setup += '-{:.2f}iomu'.format(fct_io)
                     print(setup)
-                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {} --dump-all'.format(
+                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {}'.format(
                         n_lb, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
                     for method in methods:
                         cmd = cmd_preamable + ' -m {}'.format(method)

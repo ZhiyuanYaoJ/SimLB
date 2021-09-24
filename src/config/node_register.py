@@ -1,6 +1,6 @@
 from common.entities import NodeAS, NodeClient, NodeStatelessLB, NodeLB
 from policies.rule import NodeLBLSQ, NodeLBSED, NodeLBSRT, NodeLBGSQ, NodeLBActive
-from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada, NodeLBHermes
+from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada, NodeLBGeometry, NodeLBHermes, NodeLBRS, NodeLBProbFlow
 from policies.rl_sac import NodeRLBSAC
 from config.global_conf import KF_CONF
 
@@ -92,6 +92,64 @@ METHODS = {
     },
     "hermes": { # hermes
         "class": NodeLBHermes,
+    },
+    "rs": { # reservoir sampling #flow
+        "class": NodeLBRS,
+    },
+    "rs2": { # reservoir sampling #flow
+        "class": NodeLBRS,
+        "config": {
+            "po2": True,
+        },
+    },
+    "geom": { # geometry based algorithm
+        "class": NodeLBGeometry,
+    },
+    "geom-w": { # geometry based algorithm
+        "class": NodeLBGeometry,
+        "config": {
+            "weighted": True,
+            "weights": {}, # initialize weights based on number of workers
+        },
+    },
+    "geom-sed": { # geometry based algorithm
+        "class": NodeLBGeometry,
+        "config": {
+            "sed": True,
+            "weights": {}, # initialize weights based on number of workers
+        },
+    },
+    "geom-sed-w": { # geometry based algorithm
+        "class": NodeLBGeometry,
+        "config": {
+            "sed": True,
+            "weighted": True,
+            "weights": {}, # initialize weights based on number of workers
+        },
+    },
+    "prob-flow": { # geometry based algorithm
+        "class": NodeLBProbFlow,
+    },
+    "prob-flow2": { # geometry based algorithm
+        "class": NodeLBProbFlow,
+        "config": {
+            "po2": True,
+        },
+    },
+    "prob-flow-w": { # geometry based algorithm
+        "class": NodeLBProbFlow,
+        "config": {
+            "weighted": True,
+            "weights": {}, # initialize weights based on number of workers
+        },
+    },
+    "prob-flow-w2": { # geometry based algorithm
+        "class": NodeLBProbFlow,
+        "config": {
+            "weighted": True,
+            "po2": True,
+            "weights": {}, # initialize weights based on number of workers
+        },
     },
     "rlb-sac": { # SAC model
         "class": NodeRLBSAC,

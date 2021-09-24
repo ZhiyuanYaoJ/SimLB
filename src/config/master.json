@@ -74,7 +74,7 @@
         "n_flow": -1,
         "t_inc": 1,
         "log_folder": "log",
-        "dump_all_flow": false,
+        "dump_all_flow": true,
         "debug": 0
     },
     "traffic": {

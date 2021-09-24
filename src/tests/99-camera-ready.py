@@ -92,8 +92,8 @@ methods = [
     # "hermes", #hermes
     # "rs", # reservoir sampling #flow
     # "rs2", # reservoir sampling #flow + power-of-2
-    # "geom", # geometry-based algorithm
-    #"geom-w", # geometry-based algorithm
+    "geom", # geometry-based algorithm
+    "geom-w", # geometry-based algorithm
     # "prob-flow", # geometry-based algorithm
     #"prob-flow-w", # geometry-based algorithm
     # "prob-flow2", # geometry-based algorithm
@@ -105,7 +105,7 @@ methods = [
 ]
 
 # grid search dimensions
-n_lbs = [1, 2]
+n_lbs = [2]
 n_ass = [64]
 n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
@@ -127,7 +127,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'first-impression-dump-all'
+    experiment_name = 'log-dump-all'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 

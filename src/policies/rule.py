@@ -173,21 +173,21 @@ class NodeLBGSQ(NodeLB):
             *flow.fields, self._bucket_table, self._bucket_mask)
         if self.debug > 1:
             print("@nodeLBOracle {} - n_flow_on: {}".format(self.id, n_flow_on))
-        n_flow_map = zip(self.child_ids, qlen_all)
         if self.po2:
-            n_flow_on_2 = {i: qlen_all[i]
-                           for i in random.sample(self.child_ids, 2)}
+            n_flow_on_2 = {v: qlen_all[i]
+                           for i, v in random.sample(list(enumerate(self.child_ids)), 2)}
             child_id = min(n_flow_on_2, key=n_flow_on_2.get)
             if self.debug > 1:
                 print("n_flow_on chosen {} out of -".format(child_id), n_flow_on_2)
         else:
+            n_flow_map = zip(self.child_ids, qlen_all)
             min_n_flow = min(qlen_all)
             min_ids = [k for k, v in n_flow_map if v == min_n_flow]
             child_id = random.choice(min_ids)
             if self.debug > 1:
                 print("n_flow_on chosen minimum {} from {}".format(
                     child_id, '|'.join(['{}: {}'.format(k, v) for k, v in n_flow_map])))
-        del n_flow_map
+            del n_flow_map
         return child_id, bucket_id
 
     def receive(self, ts, flow, nodes):
