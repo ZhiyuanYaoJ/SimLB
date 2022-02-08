@@ -9,13 +9,11 @@ n_thread_max = 46
 counter = None
 query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
     1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[6::4]
-# query_rate_list = [0.8]
 
 def init(args):
     ''' store the counter for later use '''
     global counter
     counter = args
-
 
 def create_path(dirName):
     if not os.path.exists(dirName):
@@ -75,33 +73,11 @@ methods = [
     #=== rule ===#
     "ecmp", # Equal-Cost Multi-Path (ECMP)
     "wcmp", # Weighted-Cost Multi-Path (WCMP)
-    # "lsq", # Local shortest queue (LSQ)
-    # "lsq2", # LSQ + power-of-2-choices
-    # "sed", # Shortest Expected Delay
-    # "sed2", # LSQ + power-of-2-choices
-    # "srt", # Shortest Remaining Time (SRT) (Layer-7)
-    # "srt2", # SRT + power-of-2-choices
     "gsq", # Global shortest queue (GSQ) (Layer-7)
     "gsq2", # GSQ + power-of-2-choices·
-    # "active-wcmp", # Spotlight, adjust weights based on periodic polling
     #=== heuristic ===#
-    # "aquarius", # Aquarius, 
-    # "hlb", # Hybrid LB (HLB), Aquarius replacing alpha by Kalman filter
-    # "hlb2", # HLB + power-of-2-choices
-    # "hlb-ada", # HLB + adaptive sensor error
-    # "hermes", #hermes
-    # "rs", # reservoir sampling #flow
-    # "rs2", # reservoir sampling #flow + power-of-2
     "geom", # geometry-based algorithm
     "geom-w", # geometry-based algorithm
-    # "prob-flow", # geometry-based algorithm
-    #"prob-flow-w", # geometry-based algorithm
-    # "prob-flow2", # geometry-based algorithm
-    #"prob-flow-w2", # geometry-based algorithm
-    #"geom-sed", # geometry-based algorithm
-    #"geom-sed-w", # geometry-based algorithm
-    # === reinforcement learning ===#
-    #"rlb-sac", # SAC model
 ]
 
 # grid search dimensions

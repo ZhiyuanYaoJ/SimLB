@@ -7,8 +7,6 @@ from pathlib import Path
 
 n_thread_max = 30
 counter = None
-# query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
-#     1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[::2]
 query_rate_list = [0.7, 0.9]
 
 

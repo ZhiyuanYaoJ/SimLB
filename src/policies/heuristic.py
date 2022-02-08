@@ -345,7 +345,6 @@ class NodeLBHermes(NodeLB):
             print("t_remain:", gt['t_remain'])
 
             print("@nodeLBHermes {} - n_flow_on: {}".format(self.id, n_flow_on))
-        # assert len(set(self.child_ids)) == len(self.child_ids)
         ind = random.randint(0,self.M-1)
         choice_orig = self.choice[ind]
         child_id = self.lookup_table[ind][choice_orig]
@@ -356,22 +355,6 @@ class NodeLBHermes(NodeLB):
         self.scores[child_id] = score
         self.choice[ind] = choice
 
-        debug_carmine = True
-        
-        if debug_carmine:
-            n_flow_on = [0, 0]
-            n_flow_on[choice_orig] = _node.get_n_flow_on()
-            n_flow_on[choice_orig^1] = nodes['{}{:d}'.format(self.child_prefix, po2_child_id)].get_n_flow_on()
-            print("bucket {:2d}: dips=[{:2d}, {:2d}] | #flow=[{:2d}, {:2d}] | score=[{:2d}, {:2d}] | choice {:1d}->{:1d} | correct: {}".format(
-                ind, self.lookup_table[ind][0], self.lookup_table[ind][1], n_flow_on[0], n_flow_on[1], self.scores[self.lookup_table[ind][0]], self.scores[self.lookup_table[ind][1]], choice_orig, self.choice[ind], n_flow_on[choice_orig] <= n_flow_on[choice_orig^1]
-                ))
-            # print("**** RANDOM INDEX {}".format(ind))
-            # print("++++ CHILD ID {}".format(child_id))
-            # print("child_id: {:4d} n_flow_on chosen: {:4d}, po2: {:4d}, new_child_id: {:4d}".format(child_id, child_n_flow_on, po2_child_n_flow_on, new_child_id))
-            # # print("---- TABLE ---- ",self.choice)
-            # print("///// ",self.lookup_table)
-            # print(">>>> ",[ nodes['{}{:d}'.format(self.child_prefix,i)].get_n_flow_on()  for i in self.child_ids])
-            # print("<<<< ",self.scores)
         if self.debug > 1:
             print("n_flow_on chosen {} out of -".format(child_id))
         
@@ -580,12 +563,6 @@ class NodeLBGeometry(NodeLB):
 
         child_idx = list(self.child_ids).index(child_id)
         self.geometry_n_flow[child_idx] = gt['n_flow'][child_idx] + 1
-
-        # file = open("WEIGHTS","w")
-        # tmp = [(max(self.geometry_n_flow) - w) for w in self.geometry_n_flow]
-        # for w in tmp:
-        #     file.write(str(w) + "\n")
-        # file.close()
         
         return child_id, bucket_id
 
