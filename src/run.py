@@ -3,13 +3,10 @@ from config.user_conf import *
 
 UNIT_TRAFFIC_RATE = 0
 
-
 def init_global_variables(args):
-    '''
-    @brief: initialize configuration for all the node
-    '''
+    global METHODS, LOG_FOLDER, NODE_CONFIG, DEBUG, UNIT_TRAFFIC_RATE
 
-    assert args.method in METHODS.keys(), "method {} not in legal METHODS".format(args.method)
+    assert args.method in METHODS, "method {} not in legal METHODS".format(args.method)
 
     NODE_CONFIG = generate_node_config_tier4(
         lb_method=args.method,
@@ -21,10 +18,11 @@ def init_global_variables(args):
         n_worker2change=int(args.n_worker2change*args.n_as),
         n_worker_multiplier=args.n_worker_multiplier,
         as_mp_level=args.as_mp_level,
-        log_folder=args.log_folder,
-        rl_test=args.rl_test,
+        kf_sensor_std=args.kf_sensor_std,
+        lb_bucket_size=args.lb_bucket_size,
+        b_offset=args.b_offset,
+        lb_period=args.lb_period,
         debug=DEBUG)
-
 
     fct_mu = args.cpu_fct_mu
     if args.process_n_stage > 1:
@@ -38,28 +36,17 @@ def init_global_variables(args):
         NODE_CONFIG['clt'][i].update({'app_config': app_config}),
 
     # update log folder
-    global LOG_FOLDER 
-    LOG_FOLDER= args.log_folder
-
+    LOG_FOLDER = args.log_folder
 
     # print out basic info
     print("unit traffic rate for current setup: {}".format(UNIT_TRAFFIC_RATE))
 
-    return NODE_CONFIG
-
 if __name__ == '__main__':
     # parse arguments
     args = parser.parse_args()
-    NODE_CONFIG = init_global_variables(args)
+    init_global_variables(args)
 
-    simulator = Simulator(
-                    NODE_CONFIG,
-                    CP_EVENTS2ADD,
-                    logfolder=LOG_FOLDER,
-                    dump_all_flow=args.dump_all_flow,
-                    t_episode=args.t_stop,
-                    t_episode_inc=args.t_inc,
-                    n_flow_total=args.n_flow_total,
-                    debug=DEBUG)
+    simulator = Simulator(NODE_CONFIG, CP_EVENTS2ADD,
+                          logfolder=LOG_FOLDER, debug=DEBUG)
 
-    simulator.run(args.n_episode, args.first_episode_id)
+    simulator.run(args.n_episode, args.t_stop, args.t_inc, args.t_stddev, args.n_flow_total, args.first_episode_id)

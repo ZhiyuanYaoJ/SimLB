@@ -1,3 +1,9 @@
+# ---------------------------------------------------------------------------- #
+#                                  Description                                 #
+# This file runs w/ each thread one mechanism over a list of traffic rates,    #
+# until there are rejected flows.                                              #
+# ---------------------------------------------------------------------------- #
+
 import subprocess
 import numpy as np
 import os
@@ -5,10 +11,9 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 46
+n_thread_max = 6
 counter = None
-query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
-    1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[::2]
+query_rate_list = [0.7, 0.9]
 
 
 def init(args):
@@ -69,14 +74,12 @@ def add_rates(tasks, rates):
     return final_task
 
 
-seed = 46
-
+seed = 42
 methods = [
     'ecmp',  # ECMP
     'weight',  # Static Weight
     'lsq',  # Local shortest queue (LSQ)
     'sed',  # LSQ
-    'hlb',  # LSQ
     'oracle',  # a god-like LB that knows remaining
     'gsq2',  # a god-like LB that knows remaining
     'hlb-ada',  # KF1d + LSQ w/ adaptive sensor error
@@ -86,42 +89,39 @@ methods = [
 # grid search dimensions
 n_lbs = [4]
 n_ass = [128]
-n_worker = 1
-n_worker_multipliers = [2]
-fct_mus = [0.5]
-n_process_stage = 1
-n_episode = 5
-fct_io = 0.25
-n_lb_bucket = 65536
+n_workers = [1]
+fct_pairs = [(0.5, 0.5), (0.75, 0.25), (0.25, 0.75)]  # fct_cpu & fct_io pairs
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
+kf_sensor_stds = [0.4]
+n_process_stage = 3
+n_episode = 5
 max_lambda_rate = 1.1
 first_episode_id = 0
 n_flow_total = int(8e4)
 T0 = time.time()
 
 if __name__ == "__main__":  # confirms that the code is under main function
-
     tasks = []
     counter = Value('i', 0)
 
-    experiment_name = 'first-impression-reduce'
+    experiment_name = 'multi-stage-reduce'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
     for n_lb in n_lbs:
         for n_as in n_ass:
-            for n_worker_multiplier in n_worker_multipliers:
-                for fct_mu in fct_mus:
+            for n_worker in n_workers:
+                for fct_mu, fct_io in fct_pairs:
                     setup = setup_fmt.format(
                         n_lb, n_as, n_worker, n_process_stage, fct_mu)
                     if n_process_stage > 1:
                         setup += '-{:.2f}iomu'.format(fct_io)
                     print(setup)
-                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {}'.format(
-                        n_lb, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
+                    cmd_preamable = 'python3 run.py --n-flow {} --n-lb {} --n-as {} --n-worker {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-episode {} --first-episode-id {}'.format(
+                        n_flow_total, n_lb, n_as, n_worker, fct_mu, n_process_stage, fct_io, n_episode, first_episode_id)
                     for method in methods:
-                        cmd = cmd_preamable + ' -m {}'.format(method)
                         log_folder = '/'.join([data_dir, setup, method])
+                        cmd = cmd_preamable + ' -m {}'.format(method)
                         tasks.append([cmd, log_folder])
                         Path(log_folder).mkdir(parents=True, exist_ok=True)
     final_tasks = add_rates(tasks, query_rate_list)

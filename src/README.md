@@ -4,6 +4,7 @@
 - [Events](#events)
 - [Policies](#policy)
 - [Configuration](#configuration)
+- [Run](#run)
 
 # Entities<a name="entities"></a>
 
@@ -221,3 +222,7 @@ The configuration stored in `master.json` is the base configuration for all the 
 - Replace `RESERVOIR_FD_PACKET_DENSITY` by a value calculated using traffic rate
 - Keep `REDUCE_METHODS`, `RESERVOIR_AS_KEYS`, `RESERVOIR_LB_KEYS`
 - Rewrite `REWARD` functions
+
+# Run<a name="run"></a>
+
+To run tests, go to `SimLB/src` directory and run tests like `python3 tests/01-first_impression.py`.

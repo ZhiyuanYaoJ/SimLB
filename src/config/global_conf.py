@@ -48,7 +48,7 @@ LB_PERIOD = 0.5
 METHOD = 'heuristic'
 
 # the feature to be used to calculate reward | previously as `reward_feature`
-REWARD_FEATURE = 'res_fct_avg_disc'
+REWARD_FEATURE = 'res_fd_avg_disc'
 
 # including 
 #   0: 1-overprovision; 
@@ -85,6 +85,14 @@ RESERVOIR_KEEP_PROB = 1.
 # whenever updating reservoir flow duration, how many packets might be transmitted
 RESERVOIR_FD_PACKET_DENSITY = 2
 
+RESERVOIR_SUMMARY_KEYS = [
+    'avg',
+    'std',
+    'p90',
+    'avg_disc',
+    'avg_decay',
+]
+
 # -------------------------------- AS Features ------------------------------- #
 
 # keys of reservoir smaplings process
@@ -104,7 +112,7 @@ RESERVOIR_AS_KEYS = [
 
 # initialize all collected features for each application server (AS)
 FEATURE_AS_ALL = ['n_flow_on']
-for f in ['res_{}'.format(k) for k in RESERVOIR_AS_KEYS]:
+for f in RESERVOIR_AS_KEYS+['{}_res'.format(k) for k in RESERVOIR_AS_KEYS]:
     FEATURE_AS_ALL += ['{}_{}'.format(f, m) for m in REDUCE_METHODS]
 
 # total amount of features for each AS
@@ -118,13 +126,11 @@ RESERVOIR_LB_KEYS = [
 ]
 
 # all features for LB node, including simple averaged features across all its associated AS
-FEATURE_LB_ALL = []
-
-for f in ['res_{}'.format(k) for k in RESERVOIR_LB_KEYS]:
-    FEATURE_LB_ALL += ['{}_{}'.format(f, m) for m in REDUCE_METHODS]
+FEATURE_LB_ALL = ['iat_f_lb_{}'.format(m)
+                  for m in REDUCE_METHODS] + FEATURE_AS_ALL
 
 # total amount of features for each LB node
-N_FEATURE_LB = len(FEATURE_LB_ALL) + len(FEATURE_AS_ALL)
+N_FEATURE_LB = len(FEATURE_LB_ALL)
 
 
 # ---------------------------------------------------------------------------- #
@@ -135,6 +141,7 @@ N_EPISODE = 1 # number of episodes to run
 EPISODE_LEN = 200.  # (unit s) episode length | previously as `args.t_stop`
 N_FLOW_TOTAL = None # define this if we don't want to simulate on number of flows instead of episode time
 EPISODE_LEN_INC = 1.  # incremental episode length | previously as `args.t_inc`
+EPISODE_LEN_STD = 0.5  # episode length standard deviation | previously as `args.t_stddev`
 
 # ---------------------------------------------------------------------------- #
 #                                  Environment                                 #
@@ -142,12 +149,13 @@ EPISODE_LEN_INC = 1.  # incremental episode length | previously as `args.t_inc`
 
 DEBUG = 0  # level of debug mode 0 < 1 < 2
 
-RENDER = True  # set to False if nothing need to be rendered into a log file every `step`
+RENDER = False  # set to False if nothing need to be rendered into a log file every `step`
 RENDER_RECEIVE = False  # set to False if nothing need to be rendered into a log file whenever receiving a `flow`
 
 # write to this file, add 'reduce' if we don't need all flows info | previously as `args.log_file`
 LOG_FOLDER = 'log'
 
+UNIT_TEST = False  # set to True if we need to test some simple stuffs
 
 
 # ---------------------------------------------------------------------------- #
@@ -303,6 +311,10 @@ parser.add_argument('--first-episode-id', type=int, action='store',
 parser.add_argument('--t-inc', type=float, action='store',
                     default=EPISODE_LEN_INC, dest='t_inc', help='Incremental episode length')
 
+parser.add_argument('--t-stddev', type=float, action='store',
+                    default=EPISODE_LEN_STD, dest='t_stddev', help='Episode length standard')
+
+
 # -------------------------------- Environment ------------------------------- #
 
 parser.add_argument('-w', action='store', default='test-reduce',
@@ -311,10 +323,6 @@ parser.add_argument('-w', action='store', default='test-reduce',
 
 parser.add_argument('-m', action='store', default='ecmp', dest='method',
                     help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
-
-parser.add_argument('--dump-all', action='store_true', default=False, dest='dump_all_flow',
-                    help='Whether dump all the flows in a file')
-
 
 # ---------------------------------- Traffic --------------------------------- #
 

@@ -7,13 +7,14 @@ from pathlib import Path
 
 n_thread_max = 46
 counter = None
-query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
-    1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[6::4]
+query_rate_list = [0.885]
+
 
 def init(args):
     ''' store the counter for later use '''
     global counter
     counter = args
+
 
 def create_path(dirName):
     if not os.path.exists(dirName):
@@ -67,62 +68,67 @@ def add_rates(tasks, rates):
     return final_task
 
 
-seed = 46
+seed = 40
 
 methods = [
-    #=== rule ===#
-    "ecmp", # Equal-Cost Multi-Path (ECMP)
-    "wcmp", # Weighted-Cost Multi-Path (WCMP)
-    "gsq", # Global shortest queue (GSQ) (Layer-7)
-    "gsq2", # GSQ + power-of-2-choices·
-    #=== heuristic ===#
-    "geom", # geometry-based algorithm
-    "geom-w", # geometry-based algorithm
+    'weight',  # Static Weight
+    'hlb-ada',  # KF1d + LSQ w/ adaptive sensor error
+    'active-wcmp',  # KF1d + LSQ w/ adaptive sensor error
 ]
 
 # grid search dimensions
-n_lbs = [2]
-n_ass = [64]
-n_worker = 1
-n_worker_multipliers = [2] # change this to compare server capacity variance
-fct_mus = [0.5] # change this to compare different input traffic distribution
-n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
-n_episode = 3
+n_lbs = [4]
+n_ass = [128]
+n_workers = [1]
+n_worker_multiplier = 2
+fct_mus = [0.25, 0.5]
+lb_periods = [0.1, 0.2, 0.5, 1.0, 2.0]
+n_process_stage = 1
+n_episode = 5
 fct_io = 0.25
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
+max_lambda_rate = 1.1
 first_episode_id = 0
-n_flow_total = int(5e4)
-#--- other options ---#
-# add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
-# add ' --lb-period {}'.format(lb_period) to change bucket size
-
+n_flow_total = int(8e4)
+T0 = time.time()
 
 if __name__ == "__main__":  # confirms that the code is under main function
 
     tasks = []
     counter = Value('i', 0)
-    T0 = time.time()
 
-    experiment_name = 'log-dump-all'
+    experiment_name = 'compare-lb-period-reduce'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
     for n_lb in n_lbs:
         for n_as in n_ass:
-            for n_worker_multiplier in n_worker_multipliers:
+            for n_worker in n_workers:
                 for fct_mu in fct_mus:
                     setup = setup_fmt.format(
                         n_lb, n_as, n_worker, n_process_stage, fct_mu)
                     if n_process_stage > 1:
                         setup += '-{:.2f}iomu'.format(fct_io)
                     print(setup)
-                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {} --dump-all'.format(
-                        n_lb, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
+                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {} --n-worker-multiplier {}'.format(
+                        n_lb, n_as, n_worker, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id, n_worker_multiplier)
                     for method in methods:
                         cmd = cmd_preamable + ' -m {}'.format(method)
-                        log_folder = '/'.join([data_dir, setup, method])
-                        tasks.append([cmd, log_folder])
-                        Path(log_folder).mkdir(parents=True, exist_ok=True)
+                        if 'active' in method or 'hlb' in method:
+                            for lb_period in lb_periods:
+                                method_alias = '{}-{}period'.format(
+                                    method, lb_period)
+                                cmd += ' --lb-period {}'.format(
+                                    lb_period)
+                                log_folder = '/'.join([data_dir,
+                                                       setup, method_alias])
+                                tasks.append([cmd, log_folder])
+                                Path(log_folder).mkdir(
+                                    parents=True, exist_ok=True)
+                        else:
+                            log_folder = '/'.join([data_dir, setup, method])
+                            tasks.append([cmd, log_folder])
+                            Path(log_folder).mkdir(parents=True, exist_ok=True)
     final_tasks = add_rates(tasks, query_rate_list)
 
     total_task = len(final_tasks)

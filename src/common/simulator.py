@@ -4,34 +4,20 @@ import json
 from common.events import *
 from common.entities import *
 from config.global_conf import *
-from config.node_register import METHODS, NODE_MAP
+from config.node_register import NODE_MAP
 from pathlib import Path
-from common.alias_method import *
 
 class Simulator:
 
     global event_buffer
 
-    def __init__(
-            self,
-            node_config,
-            cp_events,
-            logfolder='log',
-            dump_all_flow=False,
-            t_episode=EPISODE_LEN,
-            t_episode_inc=EPISODE_LEN_INC,
-            n_flow_total=N_FLOW_TOTAL,
-            debug=0):
+    def __init__(self, node_config, cp_events, logfolder='log', debug=0):
         self.node_config = node_config
         self.cp_events = cp_events
         self.logfolder = logfolder
         Path(logfolder).mkdir(parents=True, exist_ok=True)
-        self.dump_all_flow = dump_all_flow
         self.debug = debug
         self.nodes = {}
-        self.t_episode = t_episode
-        self.t_episode_int = t_episode_inc
-        self.n_flow_total = n_flow_total
 
     def init_nodes(self):
         for node_type, config in self.node_config.items():
@@ -40,7 +26,6 @@ class Simulator:
             for i, conf in config.items():
                 node_id = '{}{}'.format(node_type_prefix, i)
                 self.nodes[node_id] = NODE_MAP[node_type](node_id, **conf)
-
 
     def reset(self):
         self.n_flow_done = 0
@@ -55,26 +40,28 @@ class Simulator:
         self.init_nodes()
 
     def log_episode(self, episode_id):
-        res = {}
-        if self.dump_all_flow:
+        if 'reduce' in self.logfolder:
+            # instead of simply write all flows in the file, we calculate what we need
+            res = {}
+            for node_id, node in self.nodes.items():
+                if 'clt' in node_id:
+                    res[node_id] = node.summarize()
+                    self.n_flow_rejected += res[node_id]['n_reject']
+                if 'lb' in node_id:
+                    res[node_id] = node.summarize()
+                else:
+                    continue
+            # dump dict into a json
+            with open(self.logfolder+'/ep{}.json'.format(episode_id), 'w') as fp:
+                json.dump(res, fp)
+        else:
             flow_all = []
-
-        for node_id, node in self.nodes.items():
-            if 'clt' in node_id:
-                res[node_id] = node.summarize()
-                self.n_flow_rejected += res[node_id]['n_reject']
-                if self.dump_all_flow:
+            for node_id, node in self.nodes.items():
+                if 'clt' in node_id:
                     flow_all += node.flows
-            if 'lb' in node_id:
-                res[node_id] = node.summarize()
-            else:
-                continue
-        # dump dict into a json
-        with open(self.logfolder+'/ep{}.json'.format(episode_id), 'w') as fp:
-            json.dump(res, fp)
-
-        if self.dump_all_flow:
-            with open(self.logfolder+'/flow{}.json'.format(episode_id), 'w') as fp:
+                else:
+                    continue
+            with open(self.logfolder+'/ep{}.json'.format(episode_id), 'w') as fp:
                 fp.write('-'*10 + ' episode {} ({} flows total)'.format(episode_id, len(flow_all)) + '-'*10 + '\n')
                 for flow_ in flow_all:
                     fp.write("{}\n".format(str(flow_.get_info())))
@@ -85,9 +72,8 @@ class Simulator:
         sim_time = 0
         e_next = event_buffer.pop()
         t0 = time.time()
-        # t_last = t0
-        
-        if self.n_flow_total > 0: # prioritize n_flow_total
+
+        if self.n_flow_total: # prioritize n_flow_total
             eval2run = "self.n_flow_done < self.n_flow_total"
         else:
             eval2run = "sim_time < self.t_episode"
@@ -95,18 +81,6 @@ class Simulator:
 
             sim_time, event, added_by, kwargs = e_next
 
-            # t1 = time.time()
-            
-            # if (t1 - t_last > 0.0002):
-            #     f = open("WEIGHTS","r")
-            #     data = f.read().split("\n")
-            #     w = []
-            #     for i in data:
-            #         if i != "":
-            #             w.append(float(i))
-            #     update_alias(w)
-            #     t_last = time.time()
-                        
             if self.debug > 0:
                 print('++=======++')
                 line = '|| EVENT || ({:.3f}s): {} {}'.format(
@@ -135,7 +109,7 @@ class Simulator:
         print('number of rejected flow in total: {}'.format(self.n_flow_rejected))
         print('-' * 20)
 
-    def run(self, n_episode=N_EPISODE, first_episode_id=0):
+    def run(self, n_episode=N_EPISODE, t_episode=EPISODE_LEN, t_episode_inc=EPISODE_LEN_INC, t_episode_stddev=EPISODE_LEN_STD, n_flow_total=N_FLOW_TOTAL, first_episode_id=0):
         '''
         @brief:
             run $n_episode times episodes where the ${i}-th episode lasts np.random.normal($t_episode + $i * $t_episode_inc, $t_episode_stddev) (clipped by mean +- 2 * stddev)
@@ -144,21 +118,26 @@ class Simulator:
         '''
         assert isinstance(n_episode, int) and n_episode > 0, "Number of episodes should be positive integer"
 
-        
-        
-        # init_alias([1 for i in range(64)]) #wrongfully fixed
-        # file = open("WEIGHTS","w")
-        # for w in [1 for i in range(64)]:
-        #     file.write(str(w) + "\n")
-        # file.close()
-        
-        
+        if n_flow_total:
+            self.n_flow_total = n_flow_total
+        else:
+            self.n_flow_total = None
+
+            assert t_episode_inc >= 0
+
+            if t_episode_stddev:
+                assert t_episode > 2 * t_episode_stddev
+            else:
+                t_episode_stddev = 0.05 * t_episode
+
+            self.t_episode = t_episode
+
         for episode in range(first_episode_id, first_episode_id+n_episode):
             # reset environment
             self.reset()
 
-            if self.n_flow_total < 0:
-                # update episode duration (use exponential so that we only need 1 parameter since mean==stddev)
-                self.t_episode += np.random.exponential(t_episode_inc)
+            if not n_flow_total:
+                # update episode duration
+                self.t_episode += np.random.normal(t_episode_inc, t_episode_stddev)
 
             self.run_episode(episode)

@@ -5,11 +5,10 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 46
+n_thread_max = 24
 counter = None
-query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
-    1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[6::4]
-query_rate_list = [0.925]
+query_rate_list = [0.7, 0.9]
+
 
 def init(args):
     ''' store the counter for later use '''
@@ -71,64 +70,44 @@ def add_rates(tasks, rates):
 
 seed = 46
 
+# query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
+#     1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[::2]
+# query_rate_list = np.append(query_rate_list, np.array([1.05, 1.1]))
+# query_rate_list = np.array([1.15, 1.2])
+
 methods = [
-    #=== rule ===#
-    # "ecmp", # Equal-Cost Multi-Path (ECMP)
-    # "wcmp", # Weighted-Cost Multi-Path (WCMP)
-    # "lsq", # Local shortest queue (LSQ)
-    # "lsq2", # LSQ + power-of-2-choices
-    # "sed", # Shortest Expected Delay
-    # "sed2", # LSQ + power-of-2-choices
-    # "srt", # Shortest Remaining Time (SRT) (Layer-7)
-    # "srt2", # SRT + power-of-2-choices
-    # "gsq", # Global shortest queue (GSQ) (Layer-7)
-    # "gsq2", # GSQ + power-of-2-choices·
-    # "active-wcmp", # Spotlight, adjust weights based on periodic polling
-    #=== heuristic ===#
-    # "aquarius", # Aquarius, 
-    # "hlb", # Hybrid LB (HLB), Aquarius replacing alpha by Kalman filter
-    # "hlb2", # HLB + power-of-2-choices
-    # "hlb-ada", # HLB + adaptive sensor error
-    # "hermes", #hermes
-    # "rs", # reservoir sampling #flow
-    # "rs2", # reservoir sampling #flow + power-of-2
-    # "geom", # geometry-based algorithm
-    "geom-w", # geometry-based algorithm
-    # "prob-flow", # geometry-based algorithm
-    #"prob-flow-w", # geometry-based algorithm
-    # "prob-flow2", # geometry-based algorithm
-    #"prob-flow-w2", # geometry-based algorithm
-    #"geom-sed", # geometry-based algorithm
-    #"geom-sed-w", # geometry-based algorithm
-    # === reinforcement learning ===#
-    #"rlb-sac", # SAC model
+    'ecmp',  # ECMP
+    'weight',  # WCMP
+    'lsq',  # Local shortest queue (LSQ)
+    'sed',  # LSQ
+    'oracle',  # a god-like LB that knows remaining
+    'gsq2',  # a god-like LB that knows remaining
+    'hlb-ada',  # KF1d + LSQ w/ adaptive sensor error
+    'active-wcmp',  # KF1d + LSQ w/ adaptive sensor error
 ]
 
 # grid search dimensions
-n_lbs = [1, 2]
-n_lbs = [2]
-n_ass = [64]
+n_lbs = [4]
+n_ass = [128]
 n_worker = 1
-n_worker_multipliers = [2] # change this to compare server capacity variance
-fct_mus = [0.5] # change this to compare different input traffic distribution
-n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
-n_episode = 3
+n_worker_multipliers = [1, 2, 4]
+fct_mus = [0.5]
+n_process_stage = 1
+n_episode = 5
 fct_io = 0.25
-setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
+n_lb_bucket = 65536
+setup_fmt = '{}lb-{}as-{}worker-{}variance-{}stage-exp-{:.2f}cpumu'
+max_lambda_rate = 1.1
 first_episode_id = 0
-n_flow_total = int(5e4)
-#--- other options ---#
-# add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
-# add ' --lb-period {}'.format(lb_period) to change bucket size
-
+n_flow_total = int(8e4)
+T0 = time.time()
 
 if __name__ == "__main__":  # confirms that the code is under main function
 
     tasks = []
     counter = Value('i', 0)
-    T0 = time.time()
 
-    experiment_name = 'alias-update'
+    experiment_name = 'compare-as-variance'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
@@ -137,12 +116,12 @@ if __name__ == "__main__":  # confirms that the code is under main function
             for n_worker_multiplier in n_worker_multipliers:
                 for fct_mu in fct_mus:
                     setup = setup_fmt.format(
-                        n_lb, n_as, n_worker, n_process_stage, fct_mu)
+                        n_lb, n_as, n_worker, n_worker_multiplier, n_process_stage, fct_mu)
                     if n_process_stage > 1:
                         setup += '-{:.2f}iomu'.format(fct_io)
                     print(setup)
-                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {}'.format(
-                        n_lb, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
+                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {}'.format(
+                        n_lb, n_as, n_worker, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
                     for method in methods:
                         cmd = cmd_preamable + ' -m {}'.format(method)
                         log_folder = '/'.join([data_dir, setup, method])
