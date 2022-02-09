@@ -102,7 +102,7 @@ class ReplayBuffer(object):
 #--- Value Networks ---#
 
 
-class SoftQNetwork(nn.Module):
+class DQN(nn.Module):
     '''
     @brief:
         a very simple implementation, taking all steps as independent features
@@ -127,7 +127,7 @@ class SoftQNetwork(nn.Module):
         self.ln1 = nn.LayerNorm(hidden_size)
         # self.linear2=nn.Linear(hidden_size, hidden_size)
         # self.linear3=nn.Linear(hidden_size, hidden_size)
-        self.linear4 = nn.Linear(hidden_size, 1)
+        self.linear4 = nn.Linear(hidden_size, self.action_dim)
 
         self.linear4.weight.data.uniform_(-init_w, init_w)
         self.linear4.bias.data.uniform_(-init_w, init_w)
@@ -178,177 +178,10 @@ class SoftQNetwork(nn.Module):
         return x
 
 
-class PolicyNetwork(nn.Module):
-    def __init__(self,
-                 n_feature_as,
-                 n_feature_lb,
-                 action_dim,
-                 hidden_size,
-                 action_range=1.,
-                 init_w=3e-3,
-                 log_std_min=-20,
-                 log_std_max=2,
-                 logger=None):
-        super(PolicyNetwork, self).__init__()
-
-        self.log_std_min = log_std_min
-        self.log_std_max = log_std_max
-        self.action_dim = action_dim
-        self.n_feature_lb = n_feature_lb
-        self.n_feature_as = n_feature_as
-        self.state_dim = n_feature_lb + action_dim * n_feature_as
-        self.logger = logger
-
-        self.bn_as = nn.BatchNorm1d(n_feature_as)
-        self.bn_lb = nn.BatchNorm1d(n_feature_lb - n_feature_as)
-
-        self.linear1 = nn.Linear(self.state_dim, hidden_size)
-        self.ln1 = nn.LayerNorm(hidden_size)
-        # self.linear2=nn.Linear(hidden_size, hidden_size)
-        # self.linear3=nn.Linear(hidden_size, hidden_size)
-        self.linear4 = nn.Linear(hidden_size, hidden_size)
-
-        self.mean_linear = nn.Linear(hidden_size, self.action_dim)
-        self.mean_linear.weight.data.uniform_(-init_w, init_w)
-        self.mean_linear.bias.data.uniform_(-init_w, init_w)
-
-        self.log_std_linear = nn.Linear(hidden_size, self.action_dim)
-        self.log_std_linear.weight.data.uniform_(-init_w, init_w)
-        self.log_std_linear.bias.data.uniform_(-init_w, init_w)
-
-        self.action_range = action_range
-
-    def forward(self, state):
-        '''
-        @param:
-            feature_lb: torch.FloatTensor w/ shape [#batch, #n_feature_lb] where the first #n_feature_as cols are averaged across active AS nodes and the last (#n_feature_lb-#n_feature_as) cols are gathered locally on LB node
-            feature_as: torch.FloatTensor w/ shape [#batch, action_dim, #n_feature_as]
-            active_as: consists of #batch lists of active AS id
-        '''
-        active_as, feature_lb, feature_as = state
-        n_batch = feature_lb.shape[0]
-        feature_as_bn_buffer = torch.zeros(n_batch, self.action_dim,
-                                           self.n_feature_as).to(DEVICE)
-
-        # pass observations through a batch normalization layer
-        # w/ shape [#n_batch, #n_feature_lb-#n_feature_as]
-        if n_batch > 1:
-            obs_lb = self.bn_lb(feature_lb[:, self.n_feature_as:])
-            obs_as = self.bn_as(
-                torch.cat([
-                    feature_lb[:, :self.n_feature_as],
-                    torch.cat([
-                        feature_as[i, active_as_, :]
-                        for i, active_as_ in enumerate(active_as)
-                    ], 0)
-                ], 0)
-            )  # w/ shape [#n_batch+sum(#n_active_as_each_batch), #n_feature_as]
-        else:
-            obs_lb = (feature_lb[:, self.n_feature_as:] -
-                      self.bn_lb.running_mean) / torch.sqrt(
-                          self.bn_lb.running_var)
-            obs_as = (torch.cat([
-                feature_lb[:, :self.n_feature_as],
-                torch.cat([
-                    feature_as[i, active_as_, :]
-                    for i, active_as_ in enumerate(active_as)
-                ], 0)
-            ], 0) - self.bn_as.running_mean) / torch.sqrt(
-                self.bn_as.running_var
-            )  # w/ shape [#n_batch+sum(#n_active_as_each_batch), #n_feature_as]
-
-        # reshape all features to a single tensor w/ #n_batch rows
-        cnt_ = n_batch
-        for i, active_as_ in enumerate(active_as):
-            n_active_ = len(active_as_)
-            feature_as_bn_buffer[i, active_as_] = obs_as[cnt_:cnt_ + n_active_]
-            cnt_ += n_active_
-        x = torch.cat([
-            obs_lb, obs_as[:n_batch],
-            feature_as_bn_buffer.reshape(n_batch, -1)
-        ], 1)  # concat all features and actions into #n_batch rows
-
-        x = F.elu(self.linear1(x))
-        x = self.ln1(x)
-        # x=F.elu(self.linear2(x))
-        # x=F.elu(self.linear3(x))
-        x = F.elu(self.linear4(x))
-
-        mean = self.mean_linear(x)
-        log_std = self.log_std_linear(x)
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
-
-        return mean, log_std
-
-    def evaluate(self, state, epsilon=1e-6):
-        '''
-        @brief:
-            generate sampled action with state as input wrt the policy network
-        '''
-
-        active_as = state[0]
-        mean, log_std = self.forward(state)
-        std = log_std.exp()
-
-        normal = Normal(0, 1)
-        z = normal.sample(mean.shape)
-        # tanh distribution as actions, reparamerization trick
-        action0 = torch.tanh(mean + std * z.to(DEVICE))
-        # a mask that leaves only active AS's action
-        action_mask = torch.zeros_like(mean)
-        for i, active_as_ in enumerate(active_as):
-            action_mask[i, active_as_] = self.action_range
-        action = action_mask * action0 + 1
-
-        log_prob = Normal(mean, std).log_prob(mean + std*z.to(DEVICE)) - \
-            torch.log(1. - action0.pow(2) + epsilon) - \
-            np.log(self.action_range)
-
-        log_prob = log_prob.sum(dim=1, keepdim=True)
-        return action, log_prob, z, mean, log_std
-
-    def get_action(self, state, deterministic):
-        '''
-        @return:
-            action: w/ shape [num_actions]
-        '''
-
-        active_as, feature_lb, feature_as, _ = state  # ignore gt
-        feature_lb = torch.FloatTensor(feature_lb).unsqueeze(0).to(DEVICE)
-        feature_as = torch.FloatTensor(feature_as).unsqueeze(0).to(DEVICE)
-
-        mean, log_std = self.forward(([active_as], feature_lb, feature_as))
-        std = log_std.exp()
-
-        normal = Normal(0, 1)
-        z = normal.sample()
-        # a mask that leaves only active AS's action
-        action_mask = torch.zeros_like(mean)
-        action_mask[0, active_as] = self.action_range
-        action = action_mask * (torch.tanh(mean + std * z) + 1 + 1e-6)
-
-        action = (action_mask * torch.tanh(mean).detach().cpu().numpy() +
-                  1) if deterministic else action.detach().cpu().numpy()
-        return action[0]
-
-    def sample_action(self, active_as):
-        '''
-        @return:
-            action: w/ shape [#num_actions]
-        '''
-        action = torch.FloatTensor(self.action_dim).uniform_(0, 1)
-        # a mask that leaves only active AS's action
-        action_mask = torch.zeros_like(action)
-        if len(active_as) == 0:
-            return action
-        action_mask[active_as] = self.action_range
-        return action_mask * action.numpy()
+#--- DQN Trainer ---#
 
 
-#--- SAC Trainer ---#
-
-
-class SAC_Trainer():
+class DQN_Trainer():
     def __init__(self,
                  replay_buffer,
                  n_feature_as,
@@ -359,48 +192,19 @@ class SAC_Trainer():
                  logger=None):
         self.replay_buffer = replay_buffer
         print(DEVICE)
-        self.soft_q_net1 = SoftQNetwork(n_feature_as, n_feature_lb, action_dim,
+        self.policy_net = DQN(n_feature_as, n_feature_lb, action_dim,
                                         hidden_dim).to(DEVICE)
-        self.soft_q_net2 = SoftQNetwork(n_feature_as, n_feature_lb, action_dim,
+        self.target_net = DQN(n_feature_as, n_feature_lb, action_dim,
                                         hidden_dim).to(DEVICE)
-        self.target_soft_q_net1 = SoftQNetwork(n_feature_as, n_feature_lb,
-                                               action_dim,
-                                               hidden_dim).to(DEVICE)
-        self.target_soft_q_net2 = SoftQNetwork(n_feature_as, n_feature_lb,
-                                               action_dim,
-                                               hidden_dim).to(DEVICE)
-        self.policy_net = PolicyNetwork(n_feature_as,
-                                        n_feature_lb,
-                                        action_dim,
-                                        hidden_dim,
-                                        action_range,
-                                        logger=logger).to(DEVICE)
-        self.log_alpha = torch.zeros(1,
-                                     dtype=torch.float32,
-                                     requires_grad=True,
-                                     device=DEVICE)
 
-        for target_param, param in zip(self.target_soft_q_net1.parameters(),
-                                       self.soft_q_net1.parameters()):
-            target_param.data.copy_(param.data)
-        for target_param, param in zip(self.target_soft_q_net2.parameters(),
-                                       self.soft_q_net2.parameters()):
-            target_param.data.copy_(param.data)
+        self.target_net.load_state_dict(self.policy_net.state_dict())
 
-        self.soft_q_criterion1 = nn.MSELoss()
-        self.soft_q_criterion2 = nn.MSELoss()
+        self.criterion = nn.MSELoss()
 
-        soft_q_lr = 3e-4
-        policy_lr = 3e-4
-        alpha_lr = 3e-4
-
-        self.soft_q_optimizer1 = optim.Adam(self.soft_q_net1.parameters(),
-                                            lr=soft_q_lr)
-        self.soft_q_optimizer2 = optim.Adam(self.soft_q_net2.parameters(),
-                                            lr=soft_q_lr)
-        self.policy_optimizer = optim.Adam(self.policy_net.parameters(),
-                                           lr=policy_lr)
-        self.alpha_optimizer = optim.Adam([self.log_alpha], lr=alpha_lr)
+        lr = 3e-4
+        
+        self.optimizer = optim.Adam(self.policy_net.parameters(),
+                                            lr=lr)
 
     def update(self,
                batch_size,

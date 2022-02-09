@@ -1,9 +1,3 @@
-# ---------------------------------------------------------------------------- #
-#                                  Description                                 #
-# This file runs w/ each thread one mechanism over a list of traffic rates,    #
-# until there are rejected flows.                                              #
-# ---------------------------------------------------------------------------- #
-
 import subprocess
 import numpy as np
 import os
@@ -13,8 +7,9 @@ from pathlib import Path
 
 n_thread_max = 46
 counter = None
-query_rate_list = [0.7, 0.9]
-
+query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
+    1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[10::4]
+# query_rate_list = [0.8]
 
 def init(args):
     ''' store the counter for later use '''
@@ -74,59 +69,84 @@ def add_rates(tasks, rates):
     return final_task
 
 
-seed = 42
+seed = 46
 
 methods = [
-    'ecmp',  # ECMP
-    'weight',  # Static Weight
-    'lsq',  # Local shortest queue (LSQ)
-    'lsq2',  # Local shortest queue (LSQ) + power-of-2-choices
-    'sed',  # LSQ
-    'sed2',  # LSQ + power-of-2-choices
-    'hlb',  # LSQ
-    'hlb2',  # LSQ + power-of-2-choices
-    'oracle',  # a god-like LB that knows remaining
-    'gsq',  # a god-like LB that knows remaining
-    'gsq2',  # a god-like LB that knows remaining
-    'active-wcmp',  # KF1d + LSQ w/ adaptive sensor error
+    #=== rule ===#
+    "ecmp", # Equal-Cost Multi-Path (ECMP)
+    "wcmp", # Weighted-Cost Multi-Path (WCMP)
+    "lsq", # Local shortest queue (LSQ)
+    # "lsq2", # LSQ + power-of-2-choices
+    "sed", # Shortest Expected Delay
+    # "sed2", # LSQ + power-of-2-choices
+    "srt", # Shortest Remaining Time (SRT) (Layer-7)
+    # "srt2", # SRT + power-of-2-choices
+    # "gsq", # Global shortest queue (GSQ) (Layer-7)
+    # "gsq2", # GSQ + power-of-2-choices·
+    # "active-wcmp", # Spotlight, adjust weights based on periodic polling
+    #=== heuristic ===#
+    # "aquarius", # Aquarius, 
+    # "hlb", # Hybrid LB (HLB), Aquarius replacing alpha by Kalman filter
+    # "hlb2", # HLB + power-of-2-choices
+    # "hlb-ada", # HLB + adaptive sensor error
+    # "hermes", #hermes
+    # "rs", # reservoir sampling #flow
+    # "rs2", # reservoir sampling #flow + power-of-2
+    # "geom", # geometry-based algorithm
+    #"geom-w", # geometry-based algorithm
+    # "prob-flow", # geometry-based algorithm
+    #"prob-flow-w", # geometry-based algorithm
+    # "prob-flow2", # geometry-based algorithm
+    #"prob-flow-w2", # geometry-based algorithm
+    #"geom-sed", # geometry-based algorithm
+    #"geom-sed-w", # geometry-based algorithm
+    # === reinforcement learning ===#
+    "rlb-sac", # SAC model
 ]
 
 # grid search dimensions
-n_lbs = [4, 8]
-n_ass = [128]
-n_workers = [1]
-fct_mus = [0.5]
-setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
-n_process_stage = 1
-n_episode = 5
-max_lambda_rate = 1.1
-fct_io = 0.25  # fixed average FCT of IO process
+n_lbs = [1]
+n_ass = [2]
+n_worker = 1
+n_worker_multipliers = [2] # change this to compare server capacity variance
+fct_mus = [0.1, 0.2] # change this to compare different input traffic distribution
+n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
+n_episode = 20
+fct_io = 0.25
+setup_fmt = '{}lb-{}as-{}worker-{}stage-same-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(8e4)
-T0 = time.time()
+# n_flow_total = int(1e4)
+t_episode = 60
+t_episode_inc = 5
+#--- other options ---#
+# add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
+# add ' --lb-period {}'.format(lb_period) to change bucket size
+
 
 if __name__ == "__main__":  # confirms that the code is under main function
+
     tasks = []
     counter = Value('i', 0)
+    T0 = time.time()
 
-    experiment_name = 'po2-reduce'
+    experiment_name = 'exp-trace'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
     for n_lb in n_lbs:
         for n_as in n_ass:
-            for n_worker in n_workers:
+            for n_worker_multiplier in n_worker_multipliers:
                 for fct_mu in fct_mus:
                     setup = setup_fmt.format(
                         n_lb, n_as, n_worker, n_process_stage, fct_mu)
                     if n_process_stage > 1:
                         setup += '-{:.2f}iomu'.format(fct_io)
                     print(setup)
-                    cmd_preamable = 'python3 run.py --n-flow {} --n-lb {} --n-as {} --n-worker {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-episode {} --first-episode-id {}'.format(
-                        n_flow_total, n_lb, n_as, n_worker, fct_mu, n_process_stage, fct_io, n_episode, first_episode_id)
+                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-type exp --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} -t {} --t-inc {} --n-episode {} --first-episode-id {} --dump-all'.format(
+                        n_lb, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, t_episode, t_episode_inc, n_episode, first_episode_id)
                     for method in methods:
-                        log_folder = '/'.join([data_dir, setup, method])
                         cmd = cmd_preamable + ' -m {}'.format(method)
+                        log_folder = '/'.join([data_dir, setup, method])
                         tasks.append([cmd, log_folder])
                         Path(log_folder).mkdir(parents=True, exist_ok=True)
     final_tasks = add_rates(tasks, query_rate_list)

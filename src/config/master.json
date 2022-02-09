@@ -1,0 +1,113 @@
+{
+    "experiment": "master",
+    "seed": 42,
+    "nodes": {
+        "as": {
+            "n": 12,
+            "n_max": 600,
+            "n_cpu_base": 2,
+            "mp_level": 1,
+            "cpu_upgrade_ratio": 0.5,
+            "cpu_upgrade_value": 2,
+            "n_io": 1,
+            "backlog": 64,
+            "timeout": 40,
+            "debug": 0
+        },
+        "er": {  
+            "n": 1          
+        },
+        "lb": {
+            "n": 2,
+            "update_period": 0.5,
+            "update_padding": "valid",
+            "method": "hlb",
+            "n_bucket": 65536,
+            "render": {
+                "step": false,
+                "receive": false
+            },
+            "rtt": {
+                "min": 1e-3,
+                "max": 1e-2
+            }
+        },
+        "clt": {
+            "n": 1,
+            "gt_period": 0.5
+        }
+    },
+    "feature": {
+        "reservoir": {
+            "fresh_base": 0.5,
+            "size": 64,
+            "p": 1,
+            "reduce_option": [
+                "avg", 
+                "std", 
+                "p90", 
+                "avg_disc", 
+                "avg_decay"
+            ]
+        },
+        "as": {
+            "counter": [
+                "n_flow_on"
+            ],
+            "reservoir": [
+                "fd", 
+                "fct"
+            ]
+        },
+        "lb": {
+            "counter": [
+            ],
+            "reservoir": [
+                "iat_f_lb"
+            ]
+        }
+    },
+    "simulation": {
+        "n_episode": 1,
+        "first_episode": 0,
+        "t_len": 200,
+        "n_flow": -1,
+        "t_inc": 1,
+        "log_folder": "log",
+        "dump_all_flow": true,
+        "debug": 0
+    },
+    "traffic": {
+        "rate": 0.8,
+        "n_stage": 1,
+        "first_stage": "cpu",
+        "cpu_fct": {
+            "type": "exp",
+            "mu": 0.5,
+            "std": 0.5,
+            "min": 1e-6,
+            "max": null
+        },
+        "io_fct": {
+            "type": "exp",
+            "mu": 0.5,
+            "std": 0.5,
+            "min": 1e-6,
+            "max": null
+        }
+    },
+    "policy": {
+        "alpha": 0.5,
+        "beta": 1,
+        "kf": {
+            "system_std": 0.01,
+            "sensor_std": 0.4,
+            "system_mean": 0,
+            "init_mean": 0.5,
+            "init_std": 10
+        },
+        "reward": "default"
+    },
+    "cp_event": [
+    ]
+}

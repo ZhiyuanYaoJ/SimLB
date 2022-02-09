@@ -19,9 +19,9 @@ np.random.seed(SEED)
 
 # ------------------------------------ AS ------------------------------------ #
 
-N_AS = 12  # number of application server node(s)
+N_AS = 2  # number of application server node(s)
 
-ACTION_DIM = 600  # maximal amount of application server nodes, as in emulator
+ACTION_DIM = 2  # maximal amount of application server nodes, as in emulator
 
 # baseline number of worker threads for each AS 
 N_WORKER_BASELINE = 2
@@ -48,7 +48,7 @@ LB_PERIOD = 0.5
 METHOD = 'heuristic'
 
 # the feature to be used to calculate reward | previously as `reward_feature`
-REWARD_FEATURE = 'res_fd_avg_disc'
+REWARD_FEATURE = 'res_fct_avg_disc'
 
 # including 
 #   0: 1-overprovision; 
@@ -56,7 +56,7 @@ REWARD_FEATURE = 'res_fd_avg_disc'
 #   2: difference between min and max; 
 #   3: exponential difference between min and max; 
 #   4: jain's fairness index
-REWARD_OPTION = 4
+REWARD_OPTION = 2
 
 # update padding option 
 #   'valid': keep incrementing specific time interval on last weights generation timestamp
@@ -85,14 +85,6 @@ RESERVOIR_KEEP_PROB = 1.
 # whenever updating reservoir flow duration, how many packets might be transmitted
 RESERVOIR_FD_PACKET_DENSITY = 2
 
-RESERVOIR_SUMMARY_KEYS = [
-    'avg',
-    'std',
-    'p90',
-    'avg_disc',
-    'avg_decay',
-]
-
 # -------------------------------- AS Features ------------------------------- #
 
 # keys of reservoir smaplings process
@@ -112,7 +104,7 @@ RESERVOIR_AS_KEYS = [
 
 # initialize all collected features for each application server (AS)
 FEATURE_AS_ALL = ['n_flow_on']
-for f in RESERVOIR_AS_KEYS+['{}_res'.format(k) for k in RESERVOIR_AS_KEYS]:
+for f in ['res_{}'.format(k) for k in RESERVOIR_AS_KEYS]:
     FEATURE_AS_ALL += ['{}_{}'.format(f, m) for m in REDUCE_METHODS]
 
 # total amount of features for each AS
@@ -126,11 +118,13 @@ RESERVOIR_LB_KEYS = [
 ]
 
 # all features for LB node, including simple averaged features across all its associated AS
-FEATURE_LB_ALL = ['iat_f_lb_{}'.format(m)
-                  for m in REDUCE_METHODS] + FEATURE_AS_ALL
+FEATURE_LB_ALL = []
+
+for f in ['res_{}'.format(k) for k in RESERVOIR_LB_KEYS]:
+    FEATURE_LB_ALL += ['{}_{}'.format(f, m) for m in REDUCE_METHODS]
 
 # total amount of features for each LB node
-N_FEATURE_LB = len(FEATURE_LB_ALL)
+N_FEATURE_LB = len(FEATURE_LB_ALL) + len(FEATURE_AS_ALL)
 
 
 # ---------------------------------------------------------------------------- #
@@ -141,7 +135,6 @@ N_EPISODE = 1 # number of episodes to run
 EPISODE_LEN = 200.  # (unit s) episode length | previously as `args.t_stop`
 N_FLOW_TOTAL = None # define this if we don't want to simulate on number of flows instead of episode time
 EPISODE_LEN_INC = 1.  # incremental episode length | previously as `args.t_inc`
-EPISODE_LEN_STD = 0.5  # episode length standard deviation | previously as `args.t_stddev`
 
 # ---------------------------------------------------------------------------- #
 #                                  Environment                                 #
@@ -149,13 +142,12 @@ EPISODE_LEN_STD = 0.5  # episode length standard deviation | previously as `args
 
 DEBUG = 0  # level of debug mode 0 < 1 < 2
 
-RENDER = False  # set to False if nothing need to be rendered into a log file every `step`
+RENDER = True  # set to False if nothing need to be rendered into a log file every `step`
 RENDER_RECEIVE = False  # set to False if nothing need to be rendered into a log file whenever receiving a `flow`
 
 # write to this file, add 'reduce' if we don't need all flows info | previously as `args.log_file`
 LOG_FOLDER = 'log'
 
-UNIT_TEST = False  # set to True if we need to test some simple stuffs
 
 
 # ---------------------------------------------------------------------------- #
@@ -218,7 +210,7 @@ def get_app_config(
     if cpu_fct_type:
         config['cpu_distribution'] = {}
         config['cpu_distribution']['fct_type'] = cpu_fct_type
-        if cpu_fct_type == 'exp':
+        if cpu_fct_type in ['exp', 'same']:
             assert cpu_fct_mu
             config['cpu_distribution'].update({'mu': cpu_fct_mu})
         elif cpu_fct_type in ['normal', 'uniform', 'lognormal']:
@@ -230,14 +222,12 @@ def get_app_config(
         if io_fct_type:
             config['io_distribution'] = {}
             config['io_distribution']['fct_type'] = io_fct_type
-            if io_fct_type == 'exp':
+            if io_fct_type in ['exp', 'same']:
                 assert io_fct_mu
                 config['io_distribution'].update({'mu': io_fct_mu})
-            elif io_fct_type == 'normal':
+            elif io_fct_type in ['normal', 'uniform', 'lognormal']:
                 assert io_fct_mu and io_fct_std
                 config['io_distribution'].update({'mu': io_fct_mu, 'std': io_fct_std})
-            elif io_fct_type == 'uniform':
-                config['io_distribution'].update({'low': io_fct_low, 'high': io_fct_std})
             else:
                 raise NotImplementedError
 
@@ -311,10 +301,6 @@ parser.add_argument('--first-episode-id', type=int, action='store',
 parser.add_argument('--t-inc', type=float, action='store',
                     default=EPISODE_LEN_INC, dest='t_inc', help='Incremental episode length')
 
-parser.add_argument('--t-stddev', type=float, action='store',
-                    default=EPISODE_LEN_STD, dest='t_stddev', help='Episode length standard')
-
-
 # -------------------------------- Environment ------------------------------- #
 
 parser.add_argument('-w', action='store', default='test-reduce',
@@ -323,6 +309,10 @@ parser.add_argument('-w', action='store', default='test-reduce',
 
 parser.add_argument('-m', action='store', default='ecmp', dest='method',
                     help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
+
+parser.add_argument('--dump-all', action='store_true', default=False, dest='dump_all_flow',
+                    help='Whether dump all the flows in a file')
+
 
 # ---------------------------------- Traffic --------------------------------- #
 
@@ -334,7 +324,7 @@ parser.add_argument('--process-n-stage', type=int, action='store', default=PROCE
                     dest='process_n_stage', help='Total amount of stages')
 
 parser.add_argument('--cpu-fct-type', action='store', default=CPU_FCT_TYPE,
-                    dest='cpu_fct_type', help='Type of FCT distribution (normal, exp)')
+                    dest='cpu_fct_type', help='Type of FCT distribution (normal, exp, same, lognormal, uniform)')
 
 parser.add_argument('--cpu-fct-mu', type=float, action='store',
                     default=CPU_FCT_MU, dest='cpu_fct_mu', help='Average FCT (s)')
@@ -343,7 +333,7 @@ parser.add_argument('--cpu-fct-std', type=float, action='store', default=CPU_FCT
                     dest='cpu_fct_std', help='Normal distribution FCT (s) standard deviation')
 
 parser.add_argument('--io-fct-type', action='store', default=IO_FCT_TYPE,
-                    dest='io_fct_type', help='Type of FCT distribution (normal, exp)')
+                    dest='io_fct_type', help='Type of FCT distribution (normal, exp, same, lognormal, uniform)')
 
 parser.add_argument('--io-fct-mu', type=float, action='store',
                     default=IO_FCT_MU, dest='io_fct_mu', help='Average FCT (s)')

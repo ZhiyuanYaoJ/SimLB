@@ -25,6 +25,15 @@ def get_poisson_next_time(poisson_lambda):
     '''
     return -math.log(1.0 - random.random()) / poisson_lambda
 
+def get_fct_same(mu):
+    '''
+    @brief:
+        generate expected flow complete time (FCT) w/ exponential distribution
+    @params:
+        mu: average FCT, mu=stddev for exponential distribution
+    '''
+    return mu
+
 def get_fct_exp(mu):
     '''
     @brief:
@@ -193,6 +202,9 @@ def calcul_fair(values):
     else:
         return 1.
 
+def calcul_fair_g(values):
+    raise NotImplementedError
+
 def calcul_over(values):
     '''
     @brief: 
@@ -301,8 +313,10 @@ reward_options = {
     0: lambda x: 1 - calcul_over(x),
     # option 1: difference between min and max
     1: lambda x: min(x) - max(x),
-    # option 2: Jain's fairness index
-    2: lambda x: calcul_fair(x),
+    # option 2: Jain's fairness index - 1
+    2: lambda x: calcul_fair(x)-1,
+    # option 2: Jain's fairness index - 1
+    3: lambda x: calcul_fair_g(x)-1,
 }
 
 def fct_generator(fct_type): 

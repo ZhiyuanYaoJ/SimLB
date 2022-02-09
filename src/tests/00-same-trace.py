@@ -5,10 +5,9 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 24
+n_thread_max = 46
 counter = None
-query_rate_list = [0.7, 0.9]
-
+query_rate_list = [0.6, 0.7, 0.8, 0.9, 1.0]
 
 def init(args):
     ''' store the counter for later use '''
@@ -70,44 +69,49 @@ def add_rates(tasks, rates):
 
 seed = 46
 
-# query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
-#     1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[::2]
-# query_rate_list = np.append(query_rate_list, np.array([1.05, 1.1]))
-# query_rate_list = np.array([1.15, 1.2])
-
 methods = [
-    'ecmp',  # ECMP
-    'weight',  # WCMP
-    'lsq',  # Local shortest queue (LSQ)
-    'sed',  # LSQ
-    'oracle',  # a god-like LB that knows remaining
-    'gsq2',  # a god-like LB that knows remaining
-    'hlb-ada',  # KF1d + LSQ w/ adaptive sensor error
-    'active-wcmp',  # KF1d + LSQ w/ adaptive sensor error
+    #=== rule ===#
+    "ecmp", # Equal-Cost Multi-Path (ECMP)
+    "wcmp", # Weighted-Cost Multi-Path (WCMP)
+    "lsq", # Local shortest queue (LSQ)
+    # "lsq2", # LSQ + power-of-2-choices
+    "sed", # Shortest Expected Delay
+    # "sed2", # LSQ + power-of-2-choices
+    "srt", # Shortest Remaining Time (SRT) (Layer-7)
+    # "srt2", # SRT + power-of-2-choices
+    # "gsq", # Global shortest queue (GSQ) (Layer-7)
+    # "gsq2", # GSQ + power-of-2-choices·
+    # "active-wcmp", # Spotlight, adjust weights based on periodic polling
+    # === reinforcement learning ===#
+    "rlb-sac", # SAC model
 ]
 
 # grid search dimensions
-n_lbs = [4]
-n_ass = [128]
+n_lbs = [1]
+n_ass = [2]
 n_worker = 1
-n_worker_multipliers = [1, 2, 4]
-fct_mus = [0.5]
-n_process_stage = 1
-n_episode = 5
+n_worker_multipliers = [2] # change this to compare server capacity variance
+fct_mus = [0.1, 0.2] # change this to compare different input traffic distribution
+n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
+n_episode = 20
 fct_io = 0.25
-n_lb_bucket = 65536
-setup_fmt = '{}lb-{}as-{}worker-{}variance-{}stage-exp-{:.2f}cpumu'
-max_lambda_rate = 1.1
+setup_fmt = '{}lb-{}as-{}worker-{}stage-same-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(8e4)
-T0 = time.time()
+# n_flow_total = int(1e4)
+t_episode = 60
+t_episode_inc = 5
+#--- other options ---#
+# add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
+# add ' --lb-period {}'.format(lb_period) to change bucket size
+
 
 if __name__ == "__main__":  # confirms that the code is under main function
 
     tasks = []
     counter = Value('i', 0)
+    T0 = time.time()
 
-    experiment_name = 'compare-as-variance'
+    experiment_name = 'same-trace'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
@@ -116,12 +120,12 @@ if __name__ == "__main__":  # confirms that the code is under main function
             for n_worker_multiplier in n_worker_multipliers:
                 for fct_mu in fct_mus:
                     setup = setup_fmt.format(
-                        n_lb, n_as, n_worker, n_worker_multiplier, n_process_stage, fct_mu)
+                        n_lb, n_as, n_worker, n_process_stage, fct_mu)
                     if n_process_stage > 1:
                         setup += '-{:.2f}iomu'.format(fct_io)
                     print(setup)
-                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {}'.format(
-                        n_lb, n_as, n_worker, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
+                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-type same --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} -t {} --t-inc {} --n-episode {} --first-episode-id {} --dump-all'.format(
+                        n_lb, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, t_episode, t_episode_inc, n_episode, first_episode_id)
                     for method in methods:
                         cmd = cmd_preamable + ' -m {}'.format(method)
                         log_folder = '/'.join([data_dir, setup, method])
