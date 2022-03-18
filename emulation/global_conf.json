@@ -1,0 +1,36 @@
+{
+    "dir": {
+        "root": "/home/yzy/Load-Balancer",
+        "vpp": "/home/yzy/vpp"
+    },
+    "net": {
+        "as4_vip": "2.2.2.2",
+        "as6_vip": "dead::cafe",
+        "lb4_vip_fmt": "3.3.{}.1",
+        "lb6_vip_fmt": "dead:{:04x}::beef",
+        "br4_fmt": "192.168.0.{}",
+        "br6_fmt": "dcb6::{:04x}",
+        "tap4_fmt": "10.0.0.{}",
+        "tap6_fmt": "dc1b::{:04x}",
+        "clt4_fmt": "10.1.0.{}",
+        "clt6_fmt": "c12e::{:04x}",
+        "l2_fmt": "de:ad:be:ef:{}:{:02x}",
+        "mgmt_fmt": "10.0.1.{}",
+        "lb_mgmt_port": 8900,
+        "as_mgmt_port": 9000,
+        "er_mgmt_port": 8850,
+        "clt_mgmt_port": 8800,
+        "bridge": "bryzy",
+        "mgmt_bridge": "bryzymgmt",
+        "vlan_if": "enp7s0",
+        "vlan_id": 0,
+        "vlan_mgmt_id": 1566,
+        "physical_server_ip": [
+            "10.60.16.12", 
+            "10.60.16.17",
+            "10.60.16.15",
+            "10.60.16.16"
+        ],
+        "base_ip": "10.60.16.17"
+    }
+}

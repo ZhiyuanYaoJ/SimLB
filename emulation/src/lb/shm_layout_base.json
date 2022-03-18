@@ -1,0 +1,283 @@
+{
+    "global": {
+        "SHM_SIZE": 1048576,
+        "SHM_OFFSET": 42,
+        "SHM_N_BIN": 64,
+        "SHM_N_FRAME": 4,
+        "SHM_FRAME_MASK": 3,
+        "VIP_ID": 1,
+        "SHM_UPT_DT": 0.2,
+        "RESERVOIR_N_BIN": 128,
+        "FILE_FMT": "/dev/shm/shm_vip_{}"
+    },
+    "vpp": {
+        "struct": {
+            "stat_buffer": [
+                [
+                    "f32",
+                    "time_now",
+                    1,
+                    "Current timestamp",
+                    0.0
+                ],
+                [
+                    "u8",
+                    "tcp_flag",
+                    1,
+                    "SYN/ACK/RSTACK/RST... flags in tcp header",
+                    0
+                ],
+                [
+                    "int8_t",
+                    "d_n_flow",
+                    1,
+                    "Counter buffer used for counting number of flow",
+                    0
+                ]
+            ],
+            "tv_pair_u": [
+                [
+                    "f32",
+                    "t",
+                    1,
+                    "time",
+                    0.0
+                ],
+                [
+                    "u32",
+                    "v",
+                    1,
+                    "value",
+                    0
+                ]
+            ],
+            "tv_pair_f": [
+                [
+                    "f32",
+                    "t",
+                    1,
+                    "time",
+                    0.0
+                ],
+                [
+                    "f32",
+                    "v",
+                    1,
+                    "value",
+                    0.0
+                ]
+            ],
+            "tv_pair": [
+                [
+                    "f32",
+                    "t",
+                    1,
+                    "time",
+                    0.0
+                ],
+                [
+                    "int32_t",
+                    "v",
+                    1,
+                    "value",
+                    0
+                ]
+            ],
+            "as_stat": [
+                [
+                    "u32",
+                    "as_index",
+                    1,
+                    "AS index",
+                    0
+                ],
+                [
+                    "int32_t",
+                    "n_flow_on",
+                    1,
+                    "Instantaneous number of established flows",
+                    0
+                ]
+            ],
+            "reservoir_as": [
+                [
+                    "tv_pair_f",
+                    "fct",
+                    "RESERVOIR_N_BIN",
+                    "A list of time-value pair storing flow complete time",
+                    0
+                ],
+                [
+                    "tv_pair_f",
+                    "flow_duration",
+                    "RESERVOIR_N_BIN",
+                    "A list of time-value pair storing flow duration",
+                    0
+                ]
+            ],
+            "alias": [
+                [
+                    "f32",
+                    "odd",
+                    1,
+                    "Probability of choosing local bucket",
+                    1.0
+                ],
+                [
+                    "u32",
+                    "alias",
+                    1,
+                    "Alias of local bucket",
+                    0
+                ]
+            ],
+            "msg_out": [
+                [
+                    "u32",
+                    "id",
+                    1,
+                    "Sequence ID of output message",
+                    0
+                ],
+                [
+                    "f32",
+                    "ts",
+                    1,
+                    "Corresponding timestamp",
+                    0.0
+                ],
+                [
+                    "u64",
+                    "b_header",
+                    1,
+                    "Binary header indicating which ASs are active",
+                    0
+                ],
+                [
+                    "as_stat",
+                    "body",
+                    "SHM_N_BIN",
+                    "An array of stats info for each AS",
+                    0
+                ]
+            ],
+            "msg_in": [
+                [
+                    "u32",
+                    "id",
+                    1,
+                    "Sequence ID of output message",
+                    0
+                ],
+                [
+                    "f32",
+                    "ts",
+                    1,
+                    "Corresponding timestamp",
+                    0.0
+                ],
+                [
+                    "f32",
+                    "score",
+                    "SHM_N_BIN",
+                    "Allocated weights for each AS",
+                    1.0
+                ],
+                [
+                    "alias",
+                    "weights",
+                    "SHM_N_BIN",
+                    "An array of alias info for each AS",
+                    0
+                ]
+            ]
+        },
+        "enum": {
+            "stat_packet_type": [
+                ["SPT_NORM", "/** Normal packet (do not increment counter) */"],
+                ["SPT_FIRST_ACK", "/** Received first ACK */"],
+                ["SPT_FIRST_DATA", "/** Received ACK to first data packet **/"],
+                ["SPT_FIRST_SYN", "/** Received first SYN */"],
+                ["SPT_FIRST_FIN", "/** Received first FIN */"],
+                ["SPT_PSHACK", "/** Received PSHACK (http query) **/"],
+                ["SPT_rtr_SYN", "/** Packet retransmission (PSHACK after ACK w/ same ACK number, double RSTACK) */"],
+                ["SPT_rtr_RST", "/** Packet retransmission (PSHACK after ACK w/ same ACK number, double RSTACK) */"],
+                ["SPT_rtr_PSHACK", "/** Packet retransmission (PSHACK after ACK w/ same ACK number, double RSTACK) */"],
+                ["SPT_ooo_ACK", "/** Packet out of order (SYN after ACK, ACK number, ACK after RSTACK) */"],
+                ["SPT_ooo_RST", "/** Packet out of order (SYN after ACK, ACK number, ACK after RSTACK) */"],
+                ["SPT_ooo_PSHACK", "/** Packet out of order (SYN after ACK, ACK number, ACK after RSTACK) */"],
+                ["SPT_DUP_ACK", "/** Duplicated ACK */"],
+                ["SPT_DUP_PSHACK", "/** Duplicated PSHACK */"],
+                ["SPT_WEIRD", "/** Weird packet */"],
+                ["SPT_TS_INVALID", "/** Timestamp invalid */"],
+                ["SPT_BEYOND_SCOPE", "/** Out of scope */"]
+            ]
+        }
+    },
+    "map": {
+        "ctype2pytype": {
+            "u32": "I",
+            "u64": "Q",
+            "int32_t": "i",
+            "f32": "f",
+            "f64": "Q",
+            "u16": "H",
+            "int8_t": "b",
+            "u8": "B"
+        },
+        "ctype2byte": {
+            "u32": 4,
+            "u64": 8,
+            "int32_t": 4,
+            "f32": 4,
+            "f64": 8,
+            "u16": 2,
+            "int8_t": 8,
+            "u8": 1
+        }
+    },
+    "layout": [
+        [
+            "u8",
+            "n_as",
+            1,
+            "Number of maximum ASs",
+            "SHM_N_BIN"
+        ],
+        [
+            "msg_out",
+            "msg_out_cache",
+            1,
+            "A cache for latest output message",
+            0
+        ],
+        [
+            "msg_out",
+            "msg_out_frames",
+            "SHM_N_FRAME",
+            "A list of msg_out instance w/ increasing sequence id, written by VPP, read by SHM fetcher",
+            0
+        ],
+        [
+            "reservoir_as",
+            "res_as",
+            "SHM_N_BIN",
+            "An array of reservoir samples for each AS",
+            0
+        ],
+        [
+            "msg_in",
+            "msg_in_cache",
+            1,
+            "A cache for latest input message, written/read by VPP",
+            0
+        ],
+        [
+            "msg_in",
+            "msg_in_frames",
+            "SHM_N_FRAME",
+            "A list of msg_in instance w/ increasing sequence id, written by ML application, read by VPP",
+            0
+        ]
+    ]
+}

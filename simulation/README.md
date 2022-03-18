@@ -61,12 +61,7 @@ Once the type of the distribution is initialized, it does not change any more.
 
 ## Application<a name="application"></a>
 
-
-# Events<a name="events"></a>
-
-
-# Policies<a name="policy"></a>
-
+[TBD]
 
 
 # Configuration<a name="configuration"></a>

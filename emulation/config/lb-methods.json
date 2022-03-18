@@ -1,0 +1,153 @@
+{
+    "ecmp": {
+        "init_lines": [
+            "sudo python3 baseline.py -g"
+        ],
+        "files": [
+            "baseline.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS"
+        ],
+        "img_id": "ecmp"
+    },
+    "lsq": {
+        "init_lines": [
+            "sudo python3 baseline.py -g"
+        ],
+        "files": [
+            "baseline.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_LSQ"
+        ],
+        "img_id": "lsq"
+    },
+    "wcmp": {
+        "init_lines": [
+            "sudo python3 weighted.py -g"
+        ],
+        "files": [
+            "weighted.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_ALIAS",
+            "#define LB_MSG_IN"
+        ],
+        "img_id": "wcmp"
+    },
+    "sed": {
+        "init_lines": [
+            "sudo python3.6 weighted.py -g & sleep 0.5"
+        ],
+        "files": [
+            "weighted.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    },
+    "rlb-sac-new": {
+        "init_lines": [
+            "mkdir /home/cisco/rl; sudo python3.6 sac_new_7.py -v & sleep 0.5"
+        ],
+        "files": [
+            "sac_new_7.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    },
+    "rlb-sac-new-test": {
+        "init_lines": [
+            "mkdir /home/cisco/rl; sudo python3.6 sac_new_7.py -v -t & sleep 0.5"
+        ],
+        "files": [
+            "sac_new_7.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    },
+    "rlb-sac-gru-discrete": {
+        "init_lines": [
+            "rm /home/cisco/done; mkdir /home/cisco/rl; sleep 1; sudo python3.6 sac_gru_discrete.py -v"
+        ],
+        "files": [
+            "sac_gru_discrete.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    },
+    "rlb-sac-gru-discrete-test": {
+        "init_lines": [
+            "rm /home/cisco/done; mkdir /home/cisco/rl; sleep 1; sudo python3.6 sac_gru_discrete.py -v -t"
+        ],
+        "files": [
+            "sac_gru_discrete.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    },
+    "rlb-iql-test": {
+        "init_lines": [
+            "rm /home/cisco/done; mkdir /home/cisco/rl; sleep 1; sudo python3.6 sac_gru_discrete.py -v -t -g"
+        ],
+        "files": [
+            "sac_gru_discrete.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    },
+    "rlb-qmix": {
+        "init_lines": [
+            "rm /home/cisco/done; mkdir /home/cisco/rl; sleep 3; sudo python3.6 sac_qmix.py -v"
+        ],
+        "files": [
+            "sac_qmix.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    },
+    "rlb-qmix-test": {
+        "init_lines": [
+            "rm /home/cisco/done; mkdir /home/cisco/rl; sleep 3; sudo python3.6 sac_qmix.py -v -t"
+        ],
+        "files": [
+            "sac_qmix.py"
+        ],
+        "vpp_macro": [
+            "#define LB_STATS",
+            "#define LB_MSG_IN",
+            "#define LB_SED"
+        ],
+        "img_id": "sed"
+    }
+}

@@ -1,0 +1,797 @@
+{
+    "global": {
+        "path": {
+            "root": "/home/yzy/Load-Balancer",
+            "config": "/home/yzy/Load-Balancer/config",
+            "src": "/home/yzy/Load-Balancer/src",
+            "vpp": "/home/yzy/Load-Balancer/data/vpp_deb",
+            "img": "/home/yzy/Load-Balancer/data/img",
+            "tmp": "/home/yzy/Load-Balancer/data/tmp",
+            "trace": "/home/yzy/Load-Balancer/data/trace",
+            "orig_img": "/home/yzy/Load-Balancer/data/img/origin/lb-vpp.img",
+            "base_img": "/home/yzy/Load-Balancer/data/img/lb-vpp-base.img"
+        },
+        "topo": {
+            "n_node": {
+                "clt": 1,
+                "er": 1,
+                "lb": 2,
+                "as": 7
+            },
+            "n_vcpu": {
+                "clt": [
+                    4
+                ],
+                "er": [
+                    2
+                ],
+                "lb": [
+                    2,
+                    2
+                ],
+                "as": [
+                    1,
+                    1,
+                    1,
+                    1,
+                    2,
+                    2,
+                    2
+                ]
+            },
+            "physical_server_id": {
+                "clt": [
+                    0
+                ],
+                "er": [
+                    0
+                ],
+                "lb": [
+                    1,
+                    1
+                ],
+                "as": [
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1
+                ]
+            },
+            "thread_per_cpu": 2,
+            "n_cpu": 24,
+            "n_server": 2,
+            "compact": false,
+            "vcpu_list": {
+                "clt": [
+                    [
+                        0,
+                        24,
+                        1,
+                        25,
+                        2,
+                        26,
+                        3,
+                        27
+                    ]
+                ],
+                "er": [
+                    [
+                        4,
+                        28,
+                        5,
+                        29
+                    ]
+                ],
+                "lb": [
+                    [
+                        0,
+                        24,
+                        1,
+                        25
+                    ],
+                    [
+                        2,
+                        26,
+                        3,
+                        27
+                    ]
+                ],
+                "as": [
+                    [
+                        4,
+                        28
+                    ],
+                    [
+                        5,
+                        29
+                    ],
+                    [
+                        6,
+                        30
+                    ],
+                    [
+                        7,
+                        31
+                    ],
+                    [
+                        8,
+                        32,
+                        9,
+                        33
+                    ],
+                    [
+                        10,
+                        34,
+                        11,
+                        35
+                    ],
+                    [
+                        12,
+                        36,
+                        13,
+                        37
+                    ]
+                ]
+            },
+            "n_clt": 1,
+            "n_er": 1,
+            "n_lb": 2,
+            "n_as": 7
+        },
+        "net": {
+            "as4_vip": "2.2.2.2",
+            "as6_vip": "dead::cafe",
+            "lb4_vip_fmt": "3.3.{}.1",
+            "lb6_vip_fmt": "dead:{:04x}::beef",
+            "br4_fmt": "192.168.0.{}",
+            "br6_fmt": "dcb6::{:04x}",
+            "tap4_fmt": "10.0.0.{}",
+            "tap6_fmt": "dc1b::{:04x}",
+            "clt4_fmt": "10.1.0.{}",
+            "clt6_fmt": "c12e::{:04x}",
+            "l2_fmt": "de:ad:be:ef:{}:{:02x}",
+            "mgmt_fmt": "10.0.1.{}",
+            "lb_mgmt_port": 8900,
+            "as_mgmt_port": 9000,
+            "er_mgmt_port": 8850,
+            "clt_mgmt_port": 8800,
+            "bridge": "bryzy",
+            "mgmt_bridge": "bryzymgmt",
+            "vlan_if": "enp7s0",
+            "vlan_id": 0,
+            "vlan_mgmt_id": 1566,
+            "physical_server_ip": [
+                "10.60.16.12",
+                "10.60.16.17"
+            ],
+            "base_ip": "10.60.16.17"
+        }
+    },
+    "nodes": {
+        "clt": [],
+        "er": [],
+        "lb": [
+            {
+                "id": 0,
+                "node_type": "lb",
+                "hostname": "node_lb_0",
+                "isvpp": true,
+                "ssh_port": 8900,
+                "mgmt_ip": "10.0.1.253",
+                "l2_list": [
+                    "de:ad:ca:fe:0d:ca",
+                    "de:ad:be:ef:1b:00"
+                ],
+                "tap_list": [
+                    "lbmgmt0",
+                    "lbvpp0"
+                ],
+                "ip4_list": [
+                    "10.0.0.253"
+                ],
+                "ip6_list": [
+                    "dc1b::fffe"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_lb_0.img",
+                "vcpu_list": [
+                    0,
+                    24,
+                    1,
+                    25
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "as_list": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "as_ip4_list": [
+                    "10.0.0.1",
+                    "10.0.0.2",
+                    "10.0.0.3",
+                    "10.0.0.4",
+                    "10.0.0.5",
+                    "10.0.0.6",
+                    "10.0.0.7"
+                ],
+                "as_ip6_list": [
+                    "dc1b::0001",
+                    "dc1b::0002",
+                    "dc1b::0003",
+                    "dc1b::0004",
+                    "dc1b::0005",
+                    "dc1b::0006",
+                    "dc1b::0007"
+                ],
+                "gre4_list": [
+                    "3.3.1.1",
+                    "3.3.2.1",
+                    "3.3.3.1",
+                    "3.3.4.1",
+                    "3.3.5.1",
+                    "3.3.6.1",
+                    "3.3.7.1"
+                ],
+                "gre6_list": [
+                    "dead:0001::beef",
+                    "dead:0002::beef",
+                    "dead:0003::beef",
+                    "dead:0004::beef",
+                    "dead:0005::beef",
+                    "dead:0006::beef",
+                    "dead:0007::beef"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe",
+                "er_list": [
+                    0
+                ],
+                "er_ip4_list": [
+                    "10.0.0.254"
+                ],
+                "er_ip6_list": [
+                    "dc1b::ffff"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ]
+            },
+            {
+                "id": 1,
+                "node_type": "lb",
+                "hostname": "node_lb_1",
+                "isvpp": true,
+                "ssh_port": 8901,
+                "mgmt_ip": "10.0.1.252",
+                "l2_list": [
+                    "de:ad:ca:fe:f0:1c",
+                    "de:ad:be:ef:1b:01"
+                ],
+                "tap_list": [
+                    "lbmgmt1",
+                    "lbvpp1"
+                ],
+                "ip4_list": [
+                    "10.0.0.252"
+                ],
+                "ip6_list": [
+                    "dc1b::fffd"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_lb_1.img",
+                "vcpu_list": [
+                    2,
+                    26,
+                    3,
+                    27
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "as_list": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6
+                ],
+                "as_ip4_list": [
+                    "10.0.0.1",
+                    "10.0.0.2",
+                    "10.0.0.3",
+                    "10.0.0.4",
+                    "10.0.0.5",
+                    "10.0.0.6",
+                    "10.0.0.7"
+                ],
+                "as_ip6_list": [
+                    "dc1b::0001",
+                    "dc1b::0002",
+                    "dc1b::0003",
+                    "dc1b::0004",
+                    "dc1b::0005",
+                    "dc1b::0006",
+                    "dc1b::0007"
+                ],
+                "gre4_list": [
+                    "3.3.1.1",
+                    "3.3.2.1",
+                    "3.3.3.1",
+                    "3.3.4.1",
+                    "3.3.5.1",
+                    "3.3.6.1",
+                    "3.3.7.1"
+                ],
+                "gre6_list": [
+                    "dead:0001::beef",
+                    "dead:0002::beef",
+                    "dead:0003::beef",
+                    "dead:0004::beef",
+                    "dead:0005::beef",
+                    "dead:0006::beef",
+                    "dead:0007::beef"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe",
+                "er_list": [
+                    0
+                ],
+                "er_ip4_list": [
+                    "10.0.0.254"
+                ],
+                "er_ip6_list": [
+                    "dc1b::ffff"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ]
+            }
+        ],
+        "as": [
+            {
+                "id": 0,
+                "node_type": "as",
+                "hostname": "node_server_0",
+                "isvpp": false,
+                "ssh_port": 9000,
+                "mgmt_ip": "10.0.1.1",
+                "l2_list": [
+                    "de:ad:ca:fe:79:e7",
+                    "de:ad:be:ef:52:00"
+                ],
+                "tap_list": [
+                    "asmgmt0",
+                    "asvpp0"
+                ],
+                "ip4_list": [
+                    "10.0.0.1"
+                ],
+                "ip6_list": [
+                    "dc1b::0001"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_server_0.img",
+                "vcpu_list": [
+                    4,
+                    28
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "lb_list": [
+                    0,
+                    1
+                ],
+                "lb_ip4_list": [
+                    "10.0.0.253",
+                    "10.0.0.252"
+                ],
+                "lb_ip6_list": [
+                    "dc1b::fffe",
+                    "dc1b::fffd"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe"
+            },
+            {
+                "id": 1,
+                "node_type": "as",
+                "hostname": "node_server_1",
+                "isvpp": false,
+                "ssh_port": 9001,
+                "mgmt_ip": "10.0.1.2",
+                "l2_list": [
+                    "de:ad:ca:fe:57:e6",
+                    "de:ad:be:ef:52:01"
+                ],
+                "tap_list": [
+                    "asmgmt1",
+                    "asvpp1"
+                ],
+                "ip4_list": [
+                    "10.0.0.2"
+                ],
+                "ip6_list": [
+                    "dc1b::0002"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_server_1.img",
+                "vcpu_list": [
+                    5,
+                    29
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "lb_list": [
+                    0,
+                    1
+                ],
+                "lb_ip4_list": [
+                    "10.0.0.253",
+                    "10.0.0.252"
+                ],
+                "lb_ip6_list": [
+                    "dc1b::fffe",
+                    "dc1b::fffd"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe"
+            },
+            {
+                "id": 2,
+                "node_type": "as",
+                "hostname": "node_server_2",
+                "isvpp": false,
+                "ssh_port": 9002,
+                "mgmt_ip": "10.0.1.3",
+                "l2_list": [
+                    "de:ad:ca:fe:4a:0a",
+                    "de:ad:be:ef:52:02"
+                ],
+                "tap_list": [
+                    "asmgmt2",
+                    "asvpp2"
+                ],
+                "ip4_list": [
+                    "10.0.0.3"
+                ],
+                "ip6_list": [
+                    "dc1b::0003"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_server_2.img",
+                "vcpu_list": [
+                    6,
+                    30
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "lb_list": [
+                    0,
+                    1
+                ],
+                "lb_ip4_list": [
+                    "10.0.0.253",
+                    "10.0.0.252"
+                ],
+                "lb_ip6_list": [
+                    "dc1b::fffe",
+                    "dc1b::fffd"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe"
+            },
+            {
+                "id": 3,
+                "node_type": "as",
+                "hostname": "node_server_3",
+                "isvpp": false,
+                "ssh_port": 9003,
+                "mgmt_ip": "10.0.1.4",
+                "l2_list": [
+                    "de:ad:ca:fe:d8:90",
+                    "de:ad:be:ef:52:03"
+                ],
+                "tap_list": [
+                    "asmgmt3",
+                    "asvpp3"
+                ],
+                "ip4_list": [
+                    "10.0.0.4"
+                ],
+                "ip6_list": [
+                    "dc1b::0004"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_server_3.img",
+                "vcpu_list": [
+                    7,
+                    31
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "lb_list": [
+                    0,
+                    1
+                ],
+                "lb_ip4_list": [
+                    "10.0.0.253",
+                    "10.0.0.252"
+                ],
+                "lb_ip6_list": [
+                    "dc1b::fffe",
+                    "dc1b::fffd"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe"
+            },
+            {
+                "id": 4,
+                "node_type": "as",
+                "hostname": "node_server_4",
+                "isvpp": false,
+                "ssh_port": 9004,
+                "mgmt_ip": "10.0.1.5",
+                "l2_list": [
+                    "de:ad:ca:fe:3a:aa",
+                    "de:ad:be:ef:52:04"
+                ],
+                "tap_list": [
+                    "asmgmt4",
+                    "asvpp4"
+                ],
+                "ip4_list": [
+                    "10.0.0.5"
+                ],
+                "ip6_list": [
+                    "dc1b::0005"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_server_4.img",
+                "vcpu_list": [
+                    8,
+                    32,
+                    9,
+                    33
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "lb_list": [
+                    0,
+                    1
+                ],
+                "lb_ip4_list": [
+                    "10.0.0.253",
+                    "10.0.0.252"
+                ],
+                "lb_ip6_list": [
+                    "dc1b::fffe",
+                    "dc1b::fffd"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe"
+            },
+            {
+                "id": 5,
+                "node_type": "as",
+                "hostname": "node_server_5",
+                "isvpp": false,
+                "ssh_port": 9005,
+                "mgmt_ip": "10.0.1.6",
+                "l2_list": [
+                    "de:ad:ca:fe:ec:03",
+                    "de:ad:be:ef:52:05"
+                ],
+                "tap_list": [
+                    "asmgmt5",
+                    "asvpp5"
+                ],
+                "ip4_list": [
+                    "10.0.0.6"
+                ],
+                "ip6_list": [
+                    "dc1b::0006"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_server_5.img",
+                "vcpu_list": [
+                    10,
+                    34,
+                    11,
+                    35
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "lb_list": [
+                    0,
+                    1
+                ],
+                "lb_ip4_list": [
+                    "10.0.0.253",
+                    "10.0.0.252"
+                ],
+                "lb_ip6_list": [
+                    "dc1b::fffe",
+                    "dc1b::fffd"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe"
+            },
+            {
+                "id": 6,
+                "node_type": "as",
+                "hostname": "node_server_6",
+                "isvpp": false,
+                "ssh_port": 9006,
+                "mgmt_ip": "10.0.1.7",
+                "l2_list": [
+                    "de:ad:ca:fe:19:ce",
+                    "de:ad:be:ef:52:06"
+                ],
+                "tap_list": [
+                    "asmgmt6",
+                    "asvpp6"
+                ],
+                "ip4_list": [
+                    "10.0.0.7"
+                ],
+                "ip6_list": [
+                    "dc1b::0007"
+                ],
+                "sn4_list": [
+                    24
+                ],
+                "sn6_list": [
+                    64
+                ],
+                "img": "/home/yzy/Load-Balancer/data/img/node_server_6.img",
+                "vcpu_list": [
+                    12,
+                    36,
+                    13,
+                    37
+                ],
+                "physical_server_id": 1,
+                "physical_server_ip": "10.60.16.17",
+                "lb_list": [
+                    0,
+                    1
+                ],
+                "lb_ip4_list": [
+                    "10.0.0.253",
+                    "10.0.0.252"
+                ],
+                "lb_ip6_list": [
+                    "dc1b::fffe",
+                    "dc1b::fffd"
+                ],
+                "clt_list": [
+                    0
+                ],
+                "clt_ip4_list": [
+                    "10.1.0.1"
+                ],
+                "clt_ip6_list": [
+                    "c12e::0001"
+                ],
+                "vip4": "2.2.2.2",
+                "vip6": "dead::cafe"
+            }
+        ]
+    }
+}
