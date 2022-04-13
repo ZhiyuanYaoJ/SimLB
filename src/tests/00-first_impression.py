@@ -5,11 +5,11 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 46
+n_thread_max = 1
 counter = None
-query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
-    1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[6::4]
-# query_rate_list = [0.8]
+# query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
+#     1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[6::4]
+query_rate_list = [0.8]
 
 def init(args):
     ''' store the counter for later use '''
@@ -74,15 +74,15 @@ seed = 46
 methods = [
     #=== rule ===#
     "ecmp", # Equal-Cost Multi-Path (ECMP)
-    "wcmp", # Weighted-Cost Multi-Path (WCMP)
+    #"wcmp", # Weighted-Cost Multi-Path (WCMP)
     # "lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
     # "sed", # Shortest Expected Delay
     # "sed2", # LSQ + power-of-2-choices
     # "srt", # Shortest Remaining Time (SRT) (Layer-7)
     # "srt2", # SRT + power-of-2-choices
-    "gsq", # Global shortest queue (GSQ) (Layer-7)
-    "gsq2", # GSQ + power-of-2-choices·
+    #"gsq", # Global shortest queue (GSQ) (Layer-7)
+    #"gsq2", # GSQ + power-of-2-choices·
     # "active-wcmp", # Spotlight, adjust weights based on periodic polling
     #=== heuristic ===#
     # "aquarius", # Aquarius, 
@@ -105,7 +105,7 @@ methods = [
 ]
 
 # grid search dimensions
-n_lbs = [1, 2]
+n_lbs = [1]
 n_ass = [64]
 n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
@@ -115,14 +115,13 @@ n_episode = 3
 fct_io = 0.25
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(5e4)
+n_flow_total = int(5e1)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change bucket size
 
 
 if __name__ == "__main__":  # confirms that the code is under main function
-
     tasks = []
     counter = Value('i', 0)
     T0 = time.time()
@@ -147,6 +146,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
                         log_folder = '/'.join([data_dir, setup, method])
                         tasks.append([cmd, log_folder])
                         Path(log_folder).mkdir(parents=True, exist_ok=True)
+                        print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
 
     total_task = len(final_tasks)

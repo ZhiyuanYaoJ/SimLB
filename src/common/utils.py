@@ -150,7 +150,9 @@ def reduce_load(lr_pairs_dict, granularity=LOAD_OBSERVE_INTERVAL):
         maxs.append(_max)
     min_idx = int(np.percentile(mins, 0.01))
     max_idx = int(np.percentile(maxs, 0.99))
-    assert(min_idx < max_idx)  # overlapping indexes exist
+    if max_idx == min_idx:
+        min_idx -= 1
+    assert min_idx < max_idx
     fairness, overprovision = np.empty(0), np.empty(0)
     qlen_all = []
     for i in range(min_idx, max_idx):

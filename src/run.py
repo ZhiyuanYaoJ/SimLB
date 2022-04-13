@@ -4,6 +4,7 @@ from config.user_conf import *
 UNIT_TRAFFIC_RATE = 0
 
 
+
 def init_global_variables(args):
     '''
     @brief: initialize configuration for all the node
