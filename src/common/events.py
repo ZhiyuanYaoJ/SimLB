@@ -36,7 +36,8 @@ def as_try_remove(nodes, ts, node_id):
 
 def as_periodic_log(nodes, ts, node_ids, interval):
     global event_buffer
-    print('Periodic check: '+'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
+    if DEBUG>1:
+        print('Periodic check: '+'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
     event_buffer.put(Event(ts+interval, 'as_periodic_log', 'sys-admin', {'node_ids': node_ids, 'interval': interval}))
 
 def lb_update_bucket(nodes, ts, node_id):

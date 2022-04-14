@@ -1,6 +1,6 @@
 # ---------------------------------------------------------------------------- #
 #                                  Description                                 #
-# This file stores a simple tier4 confiuration, which will overwrite default #
+# This file stores a hierarchical configuration, which will overwrite default #
 # global configuration (in global_conf.py)                                     #
 # ---------------------------------------------------------------------------- #
 
@@ -16,24 +16,33 @@ from config.node_register import METHODS, NODE_MAP
 # ---------------------------------------------------------------------------- #
 #                                   Topology                                   #
 # ---------------------------------------------------------------------------- #
+N_LBP = 1
+N_LBS = 8
+LBP_BUCKET_SIZE = LB_BUCKET_SIZE
+LBS_BUCKET_SIZE = LB_BUCKET_SIZE
 
-def generate_node_config_tier4(
-    lb_method='ecmp',
+def generate_node_config_hierarchical(
+    lbp_method='ecmp',
+    lbs_method='ecmp',
     n_clt=1, 
     n_er=1, 
-    n_lb=N_LB, 
+    n_lbp=N_LBP,
+    n_lbs=N_LBS,  
     n_as=N_AS, 
     n_worker_baseline=N_WORKER_BASELINE, 
     n_worker2change=N_WORKER2CHANGE, 
     n_worker_multiplier=N_WORKER_MULTIPLIER,
     as_mp_level=AS_MULTIPROCESS_LEVEL,
-    lb_bucket_size=LB_BUCKET_SIZE,
+    lbp_bucket_size=LBP_BUCKET_SIZE,
+    lbs_bucket_size=LBS_BUCKET_SIZE,
     log_folder=LOG_FOLDER,
     rl_test=False,
     debug=DEBUG):
+    
     clt_ids = list(range(n_clt))
     er_ids = list(range(n_er))
-    lb_ids = list(range(n_lb))
+    lbp_ids = list(range(n_lbp))
+    lbs_ids = list(range(n_lbp, n_lbp + n_lbs))
     as_ids = list(range(n_as))
 
     clt_template = {
@@ -43,14 +52,20 @@ def generate_node_config_tier4(
     }
 
     er_template = {
-        'child_ids': lb_ids,
+        'child_ids': lbp_ids,
         'child_prefix': 'lb',  # connected to load balancers
     }
 
-    lb_template = {
+    lbp_template = {
+        'child_ids': lbs_ids,
+        'debug': 0,
+        'bucket_size': lbp_bucket_size,
+    }
+    
+    lbs_template = {
         'child_ids': as_ids,
         'debug': 0,
-        'bucket_size': lb_bucket_size,
+        'bucket_size': lbs_bucket_size,
     }
 
     as_template = {
@@ -62,29 +77,59 @@ def generate_node_config_tier4(
     clt_config = {i: clt_template.copy() for i in clt_ids}
     er_config = {i: er_template.copy() for i in er_ids}
     as_config = {i: as_template.copy() for i in as_ids}
-    lb_config = {i: lb_template.copy() for i in lb_ids}
+    lbp_config = {i: lbp_template.copy() for i in lbp_ids}
+    lbs_config = {i: lbs_template.copy() for i in lbs_ids}
+    
+
+    k, m = divmod(n_as, n_lbs)
+    for i in lbs_config:
+        lbs_config[i]['child_ids'] = list(range(i*k+min(i, m),(i+1)*k+min(i+1, m)))
 
     for i in range(n_worker2change):  # update half as configuration
         as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
 
-    if 'config' in METHODS[lb_method].keys():
-        if 'weights' in METHODS[lb_method]['config'].keys() and METHODS[lb_method]['config']['weights'] == {}:
-            METHODS[lb_method]['config']['weights'] = {
+    # For primary LB
+    if 'config' in METHODS[lbp_method].keys():
+        if 'weights' in METHODS[lbp_method]['config'].keys() and METHODS[lbp_method]['config']['weights'] == {}:
+            METHODS[lbp_method]['config']['weights'] = {
                     i: as_config[i]['n_worker'] for i in as_ids}
-        for i in lb_config.keys():
-            lb_config[i].update(METHODS[lb_method]['config'])
-    if 'rlb' in lb_method:
-        for i in lb_config.keys():
-            lb_config[i].update({'logger_dir': log_folder+'/rl.log',
+        for i in lbp_config.keys():
+            lbp_config[i].update(METHODS[lbp_method]['config'])
+    if 'rlb' in lbp_method:
+        for i in lbp_config.keys():
+            lbp_config[i].update({'logger_dir': log_folder+'/rlp.log',
                                  'rl_test': rl_test})
-    
-    return {
-        'clt': clt_config,
-        'er': er_config,
-        'as': as_config,
-        'lb-'+lb_method: lb_config,
-    }
 
+    # For secondary LB
+    if 'config' in METHODS[lbs_method].keys():
+            if 'weights' in METHODS[lbs_method]['config'].keys() and METHODS[lbs_method]['config']['weights'] == {}:
+                METHODS[lbs_method]['config']['weights'] = {
+                        i: as_config[i]['n_worker'] for i in as_ids}
+            for i in lbs_config.keys():
+                lbs_config[i].update(METHODS[lbs_method]['config'])
+    if 'rlb' in lbs_method:
+        for i in lbs_config.keys():
+            lbs_config[i].update({'logger_dir': log_folder+'/rls.log',
+                                'rl_test': rl_test})            
+    
+    
+    if lbp_method == lbs_method:
+        lb_config = {**lbp_config, **lbs_config}
+        return {
+            'clt': clt_config,
+            'er': er_config,
+            'as': as_config,
+            'lb-'+lbp_method: lb_config
+        }
+    else:
+        return {
+            'clt': clt_config,
+            'er': er_config,
+            'as': as_config,
+            'lb-'+lbp_method: lbp_config,
+            'lb-'+lbs_method: lbs_config,
+        }
+    
 NODE_CONFIG = {}
 
 # ---------------------------------------------------------------------------- #
@@ -153,12 +198,12 @@ CP_EVENTS2ADD = [
     #     }
     # )
     (
-        
+        # Periodic log
         0.5,
         'as_periodic_log',
         'sys-admin',
         {
-            'node_ids': ['as{}'.format(i) for i in range(64)],
+            'node_ids': ['as{}'.format(i) for i in range(N_AS)],
             'interval': 0.5,
         }
     ),

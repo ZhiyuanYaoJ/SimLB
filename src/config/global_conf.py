@@ -142,7 +142,7 @@ EPISODE_LEN_INC = 1.  # incremental episode length | previously as `args.t_inc`
 
 DEBUG = 0  # level of debug mode 0 < 1 < 2
 
-RENDER = True  # set to False if nothing need to be rendered into a log file every `step`
+RENDER = False  # set to False if nothing need to be rendered into a log file every `step`
 RENDER_RECEIVE = False  # set to False if nothing need to be rendered into a log file whenever receiving a `flow`
 
 # write to this file, add 'reduce' if we don't need all flows info | previously as `args.log_file`
@@ -312,6 +312,12 @@ parser.add_argument('-w', action='store', default='test-reduce',
 parser.add_argument('-m', action='store', default='ecmp', dest='method',
                     help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
 
+parser.add_argument('-m1', action='store', default='ecmp', dest='method1',
+                    help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
+
+parser.add_argument('-m2', action='store', default='ecmp', dest='method2',
+                    help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
+
 parser.add_argument('--dump-all', action='store_true', default=False, dest='dump_all_flow',
                     help='Whether dump all the flows in a file')
 
@@ -393,6 +399,14 @@ parser.add_argument('--n-er', type=int, action='store',
 parser.add_argument('--n-lb', type=int, action='store',
                     default=N_LB, dest='n_lb',
                     help='Number of LB nodes')
+
+parser.add_argument('--n-lbp', type=int, action='store',
+                    default=1, dest='n_lbp',
+                    help='Number of LB nodes in the first layer')
+
+parser.add_argument('--n-lbs', type=int, action='store',
+                    default=N_LB, dest='n_lbs',
+                    help='Number of LB nodes in the second layer')
 
 parser.add_argument('--n-as', type=int, action='store',
                     default=N_AS, dest='n_as',

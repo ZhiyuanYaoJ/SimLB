@@ -1,6 +1,5 @@
 from common.simulator import *
-#from config.user_conf import *
-from config.exp_tier4 import *
+from config.exp_hierarchical import *
 
 UNIT_TRAFFIC_RATE = 0
 
@@ -13,11 +12,13 @@ def init_global_variables(args):
 
     assert args.method in METHODS.keys(), "method {} not in legal METHODS".format(args.method)
 
-    NODE_CONFIG = generate_node_config_tier4(
-        lb_method=args.method,
-        n_clt=args.n_clt,
+    NODE_CONFIG = generate_node_config_hierarchical(
+        lbp_method=args.method1, #first layer load balancer
+        lbs_method=args.method2, #second layer load balancer
+        n_clt=args.n_clt,       
         n_er=args.n_er,
-        n_lb=args.n_lb,
+        n_lbp=args.n_lbp,
+        n_lbs=args.n_lbs,
         n_as=args.n_as,
         n_worker_baseline=args.n_worker,
         n_worker2change=int(args.n_worker2change*args.n_as),
