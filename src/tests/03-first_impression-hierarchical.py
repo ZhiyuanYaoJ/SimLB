@@ -62,8 +62,9 @@ def add_rates(tasks, rates):
             log_folder = os.path.join(foldername, 'rate{:.3f}'.format(rate))
             Path(log_folder).mkdir(parents=False, exist_ok=True)
             cmd = cmd_preamable + \
-                ' --lambda {0:.3f} -w {1} > {1}/test.log'.format(
+               ' --lambda {0:.3f} -w {1} > {1}/test.log'.format(
                     rate, log_folder)
+
             final_task.append((cmd, log_folder))
 
     return final_task
@@ -162,7 +163,6 @@ if __name__ == "__main__":  # confirms that the code is under main function
     experiment_name = 'first-impression-dump-all'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
-
     for n_lbp in n_lbps:
         for n_lbs in n_lbss:
             for n_as in n_ass:

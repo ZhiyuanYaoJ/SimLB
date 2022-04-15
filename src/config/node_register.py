@@ -14,11 +14,15 @@ METHODS = {
     #=== rule-based ===#
     "ecmp": { # Equal-Cost Multi-Path (ECMP)
         "class": NodeLB,
+        "config": {
+            #"layer": 1
+        }
     }, 
     "wcmp": { # Weightd-Cost Multi-Path (WCMP)
         "class": NodeLB,    
         "config": {
-            "weights": {} # initialize weights based on number of workers
+            "weights": {}, # initialize weights based on number of workers
+            #"layer": 1
         }    
     },
     "lsq": { # Local shortest queue (LSQ)

@@ -20,6 +20,7 @@ N_LBP = 1
 N_LBS = 8
 LBP_BUCKET_SIZE = LB_BUCKET_SIZE
 LBS_BUCKET_SIZE = LB_BUCKET_SIZE
+N_LAYER = 2
 
 def generate_node_config_hierarchical(
     lbp_method='ecmp',
@@ -59,12 +60,14 @@ def generate_node_config_hierarchical(
     lbp_template = {
         'child_ids': lbs_ids,
         'debug': 0,
+        'layer': 2,
         'bucket_size': lbp_bucket_size,
     }
     
     lbs_template = {
         'child_ids': as_ids,
         'debug': 0,
+        'layer': 1,
         'bucket_size': lbs_bucket_size,
     }
 
@@ -83,7 +86,7 @@ def generate_node_config_hierarchical(
 
     k, m = divmod(n_as, n_lbs)
     for i in lbs_config:
-        lbs_config[i]['child_ids'] = list(range(i*k+min(i, m),(i+1)*k+min(i+1, m)))
+        lbs_config[i]['child_ids'] = list(range((i-1)*k,min((i)*k, n_as)))
 
     for i in range(n_worker2change):  # update half as configuration
         as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
@@ -92,14 +95,14 @@ def generate_node_config_hierarchical(
     if 'config' in METHODS[lbp_method].keys():
         if 'weights' in METHODS[lbp_method]['config'].keys() and METHODS[lbp_method]['config']['weights'] == {}:
             METHODS[lbp_method]['config']['weights'] = {
-                    i: as_config[i]['n_worker'] for i in as_ids}
+                    i: lbs_config[i]['n_worker'] for i in lbs_ids}
         for i in lbp_config.keys():
             lbp_config[i].update(METHODS[lbp_method]['config'])
     if 'rlb' in lbp_method:
         for i in lbp_config.keys():
             lbp_config[i].update({'logger_dir': log_folder+'/rlp.log',
                                  'rl_test': rl_test})
-
+    
     # For secondary LB
     if 'config' in METHODS[lbs_method].keys():
             if 'weights' in METHODS[lbs_method]['config'].keys() and METHODS[lbs_method]['config']['weights'] == {}:
@@ -111,7 +114,7 @@ def generate_node_config_hierarchical(
         for i in lbs_config.keys():
             lbs_config[i].update({'logger_dir': log_folder+'/rls.log',
                                 'rl_test': rl_test})            
-    
+
     
     if lbp_method == lbs_method:
         lb_config = {**lbp_config, **lbs_config}

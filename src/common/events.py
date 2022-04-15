@@ -7,7 +7,7 @@
 #   - Update bucket table                                                      #
 #   - Step (Render and generate new weights)                                   #
 # ---------------------------------------------------------------------------- #
-
+DEBUG = 1
 from config.global_conf import *
 from common.entities import Event, NodeAS, event_buffer
 

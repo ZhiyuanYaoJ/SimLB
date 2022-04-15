@@ -1,8 +1,8 @@
+from distutils.command.config import dump_file
 from common.simulator import *
 from config.exp_hierarchical import *
 
 UNIT_TRAFFIC_RATE = 0
-
 
 
 def init_global_variables(args):
@@ -10,7 +10,8 @@ def init_global_variables(args):
     @brief: initialize configuration for all the node
     '''
 
-    assert args.method in METHODS.keys(), "method {} not in legal METHODS".format(args.method)
+    assert args.method1 in METHODS.keys(), "method {} not in legal METHODS".format(args.method1)
+    assert args.method2 in METHODS.keys(), "method {} not in legal METHODS".format(args.method2)
 
     NODE_CONFIG = generate_node_config_hierarchical(
         lbp_method=args.method1, #first layer load balancer
@@ -27,6 +28,7 @@ def init_global_variables(args):
         log_folder=args.log_folder,
         rl_test=args.rl_test,
         debug=DEBUG)
+ 
 
 
     fct_mu = args.cpu_fct_mu
@@ -47,14 +49,12 @@ def init_global_variables(args):
 
     # print out basic info
     print("unit traffic rate for current setup: {}".format(UNIT_TRAFFIC_RATE))
-
     return NODE_CONFIG
 
 if __name__ == '__main__':
     # parse arguments
     args = parser.parse_args()
     NODE_CONFIG = init_global_variables(args)
-
     simulator = Simulator(
                     NODE_CONFIG,
                     CP_EVENTS2ADD,

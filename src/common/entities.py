@@ -744,7 +744,7 @@ class NodeStatelessLB(Node):
         A stateless load balancer w/ ECMP
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, max_n_child=ACTION_DIM, T0=time.time(), ecmp=False, child_prefix='as', debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, max_n_child=ACTION_DIM, T0=time.time(), ecmp=False, child_prefix='as', debug=0,layer=1):
         '''
             @params:
                 child_ids: a list of id number of AS which is currently active
@@ -767,9 +767,12 @@ class NodeStatelessLB(Node):
         self._init_weights[child_ids] = 1.
         self.T0 = T0
         self._ecmp = ecmp_methods[ecmp]
+        if layer > 1:
+            child_prefix = 'lb'
         self.child_prefix = child_prefix
+        self.layer=layer
         NodeStatelessLB.reset(self)
-
+        
 
     def reset(self):
         '''
@@ -803,6 +806,7 @@ class NodeStatelessLB(Node):
         _, child_id = self._ecmp(*flow.fields, self._bucket_table, self._bucket_mask)
 
         ts += self.get_process_delay()
+
         flow.update_send(ts, '{}{}'.format(self.child_prefix, child_id)) # for now, we only implement for ecmp_random
         self.send(ts+self.get_t2neighbour(), flow)
 
@@ -835,7 +839,7 @@ class NodeLB(NodeStatelessLB):
         A basic load balancing that does (weighted) ECMP
     '''
 
-    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', debug=0, lb_period=LB_PERIOD):
+    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', debug=0, lb_period=LB_PERIOD, layer=1):
         '''
         @params:
             child_ids: a list of id number of AS which is currently active
@@ -849,7 +853,7 @@ class NodeLB(NodeStatelessLB):
             child_prefix: by default 'as'
         '''
         # initialize arguments
-        super().__init__(id, child_ids, bucket_size, max_n_child, T0, ecmp, child_prefix, debug)
+        super().__init__(id, child_ids, bucket_size, max_n_child, T0, ecmp, child_prefix, debug, layer)
         if weights:
             assert np.array(list(weights.keys())).any() in range(
                 max_n_child), 'LB {} - weights\' id should be in max_n_child range'.format(self.id)
@@ -1000,7 +1004,6 @@ class NodeLB(NodeStatelessLB):
         
         # random select 
         child_id, bucket_id = self.choose_child(flow, nodes,ts)
-
         # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
         if RENDER_RECEIVE: self.render_receive(ts, flow, child_id, nodes)
 
@@ -1023,7 +1026,9 @@ class NodeLB(NodeStatelessLB):
         flow.update_send(ts, '{}{}'.format(self.child_prefix, child_id)) # for now, we only implement for ecmp_random
         self.send(ts+self.get_t2neighbour(), flow)
 
-        nodes['{}{}'.format(self.child_prefix, child_id)].update_pending_fct(flow)
+
+        if (self.layer == 1):
+            nodes['{}{}'.format(self.child_prefix, child_id)].update_pending_fct(flow)
         
     def expire_flow(self, ts, flow_id):
         '''
@@ -1164,8 +1169,9 @@ class NodeClient(Node):
         @brief:
             reduce flows' information during one episode
         '''
+
         if len(self.flows) == 0: 
-            print("no flow registered")
+            if DEBUG > 1: print("no flow registered")
             return
 
         if self.debug > 0:

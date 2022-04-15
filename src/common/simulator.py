@@ -32,7 +32,7 @@ class Simulator:
         self.t_episode = t_episode
         self.t_episode_int = t_episode_inc
         self.n_flow_total = n_flow_total
-
+        
     def init_nodes(self):
         for node_type, config in self.node_config.items():
             node_type_prefix = node_type
@@ -56,6 +56,8 @@ class Simulator:
 
     def log_episode(self, episode_id):
         res = {}
+
+        
         if self.dump_all_flow:
             flow_all = []
 
@@ -78,6 +80,7 @@ class Simulator:
                 fp.write('-'*10 + ' episode {} ({} flows total)'.format(episode_id, len(flow_all)) + '-'*10 + '\n')
                 for flow_ in flow_all:
                     fp.write("{}\n".format(str(flow_.get_info())))
+                    print(str(flow_.get_info()))
                     if 'reject' in flow_.nexthop:
                         self.n_flow_rejected += 1
 
@@ -132,8 +135,9 @@ class Simulator:
         if self.logfolder:
             self.log_episode(episode_id)
         # 2. we print out necessary data
-        print('number of rejected flow in total: {}'.format(self.n_flow_rejected))
-        print('-' * 20)
+        if DEBUG > 1:
+            print('number of rejected flow in total: {}'.format(self.n_flow_rejected))
+            print('-' * 20)
 
     def run(self, n_episode=N_EPISODE, first_episode_id=0):
         '''
