@@ -76,7 +76,7 @@ methods1 = [
     #=== rule ===#
     "ecmp", # Equal-Cost Multi-Path (ECMP)
     #"wcmp", # Weighted-Cost Multi-Path (WCMP)
-    # "lsq", # Local shortest queue (LSQ)
+    #"lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
     # "sed", # Shortest Expected Delay
     # "sed2", # LSQ + power-of-2-choices
@@ -108,13 +108,13 @@ methods2 = [
     #=== rule ===#
     "ecmp", # Equal-Cost Multi-Path (ECMP)
     #"wcmp", # Weighted-Cost Multi-Path (WCMP)
-    # "lsq", # Local shortest queue (LSQ)
+    "lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
-    # "sed", # Shortest Expected Delay
+    "sed", # Shortest Expected Delay
     # "sed2", # LSQ + power-of-2-choices
-    # "srt", # Shortest Remaining Time (SRT) (Layer-7)
+    "srt", # Shortest Remaining Time (SRT) (Layer-7)
     # "srt2", # SRT + power-of-2-choices
-    #"gsq", # Global shortest queue (GSQ) (Layer-7)
+    "gsq", # Global shortest queue (GSQ) (Layer-7)
     #"gsq2", # GSQ + power-of-2-choices·
     # "active-wcmp", # Spotlight, adjust weights based on periodic polling
     #=== heuristic ===#
@@ -149,7 +149,7 @@ n_episode = 3
 fct_io = 0.25
 setup_fmt = '{}lbp-{}lbs-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(5e1)
+n_flow_total = int(5e2)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change bucket size

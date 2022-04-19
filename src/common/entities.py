@@ -744,7 +744,7 @@ class NodeStatelessLB(Node):
         A stateless load balancer w/ ECMP
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, max_n_child=ACTION_DIM, T0=time.time(), ecmp=False, child_prefix='as', debug=0,layer=1):
+    def __init__(self, id, child_ids, bucket_size=65536, max_n_child=ACTION_DIM, T0=time.time(), ecmp=False, child_prefix='as', layer=1, debug=0):
         '''
             @params:
                 child_ids: a list of id number of AS which is currently active
@@ -832,6 +832,7 @@ class NodeStatelessLB(Node):
             self.weights[id_] = 0.
 
         self.generate_bucket_table() # update bucket table
+        
 
 class NodeLB(NodeStatelessLB):
     '''
@@ -839,7 +840,7 @@ class NodeLB(NodeStatelessLB):
         A basic load balancing that does (weighted) ECMP
     '''
 
-    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', debug=0, lb_period=LB_PERIOD, layer=1):
+    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', layer=1, debug=0, lb_period=LB_PERIOD):
         '''
         @params:
             child_ids: a list of id number of AS which is currently active
@@ -853,11 +854,11 @@ class NodeLB(NodeStatelessLB):
             child_prefix: by default 'as'
         '''
         # initialize arguments
-        super().__init__(id, child_ids, bucket_size, max_n_child, T0, ecmp, child_prefix, debug, layer)
+        super().__init__(id, child_ids, bucket_size, max_n_child, T0, ecmp, child_prefix, layer, debug)
         if weights:
             assert np.array(list(weights.keys())).any() in range(
                 max_n_child), 'LB {} - weights\' id should be in max_n_child range'.format(self.id)
-            self._init_weights[child_ids] = [w for _, w in weights.items()]
+            self._init_weights[child_ids] = [w for i, w in weights.items() if i in child_ids]
             # normalize weights
             self._init_weights /= sum(self._init_weights)
         self.reward_fn = reward_options[reward_option]
@@ -1027,7 +1028,7 @@ class NodeLB(NodeStatelessLB):
         self.send(ts+self.get_t2neighbour(), flow)
 
 
-        if (self.layer == 1):
+        if (self.child_prefix == 'as'):
             nodes['{}{}'.format(self.child_prefix, child_id)].update_pending_fct(flow)
         
     def expire_flow(self, ts, flow_id):
@@ -1117,6 +1118,9 @@ class NodeLB(NodeStatelessLB):
         res['n_untracked'] = self.n_untracked_flow
 
         return res
+        
+    def get_n_flow_on(self):
+        return self.n_untracked_flow + sum(self._counters['n_flow_on'])
         
 class NodeClient(Node):
 

@@ -30,7 +30,7 @@ class Simulator:
         self.debug = debug
         self.nodes = {}
         self.t_episode = t_episode
-        self.t_episode_int = t_episode_inc
+        self.t_episode_inc = t_episode_inc
         self.n_flow_total = n_flow_total
         
     def init_nodes(self):
@@ -163,6 +163,6 @@ class Simulator:
 
             if self.n_flow_total < 0:
                 # update episode duration (use exponential so that we only need 1 parameter since mean==stddev)
-                self.t_episode += np.random.exponential(t_episode_inc)
+                self.t_episode += np.random.exponential(self.t_episode_inc)
 
             self.run_episode(episode)

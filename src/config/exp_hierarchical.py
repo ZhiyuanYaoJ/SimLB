@@ -90,19 +90,7 @@ def generate_node_config_hierarchical(
 
     for i in range(n_worker2change):  # update half as configuration
         as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
-
-    # For primary LB
-    if 'config' in METHODS[lbp_method].keys():
-        if 'weights' in METHODS[lbp_method]['config'].keys() and METHODS[lbp_method]['config']['weights'] == {}:
-            METHODS[lbp_method]['config']['weights'] = {
-                    i: lbs_config[i]['n_worker'] for i in lbs_ids}
-        for i in lbp_config.keys():
-            lbp_config[i].update(METHODS[lbp_method]['config'])
-    if 'rlb' in lbp_method:
-        for i in lbp_config.keys():
-            lbp_config[i].update({'logger_dir': log_folder+'/rlp.log',
-                                 'rl_test': rl_test})
-    
+        
     # For secondary LB
     if 'config' in METHODS[lbs_method].keys():
             if 'weights' in METHODS[lbs_method]['config'].keys() and METHODS[lbs_method]['config']['weights'] == {}:
@@ -114,6 +102,20 @@ def generate_node_config_hierarchical(
         for i in lbs_config.keys():
             lbs_config[i].update({'logger_dir': log_folder+'/rls.log',
                                 'rl_test': rl_test})            
+
+
+    # For primary LB
+    if 'config' in METHODS[lbp_method].keys():
+        if 'weights' in METHODS[lbp_method]['config'].keys() and METHODS[lbp_method]['config']['weights'] == {}:
+            METHODS[lbp_method]['config']['weights'] = {
+                    i: sum([as_config[k]['n_worker'] for k in lbs_config[i]['child_ids']]) for i in lbs_ids}
+        for i in lbp_config.keys():
+            lbp_config[i].update(METHODS[lbp_method]['config'])
+    if 'rlb' in lbp_method:
+        for i in lbp_config.keys():
+            lbp_config[i].update({'logger_dir': log_folder+'/rlp.log',
+                                 'rl_test': rl_test})
+    
 
     
     if lbp_method == lbs_method:

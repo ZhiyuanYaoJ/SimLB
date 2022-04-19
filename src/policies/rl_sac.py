@@ -39,10 +39,11 @@ class NodeRLBSAC(NodeLB):
             b_offset=B_OFFSET,
             logger_dir="log/rl.log",
             rl_test=False,
+            layer=1,
             debug=0
             ):
         super().__init__(id, child_ids, bucket_size, weights, 
-                         max_n_child, T0, reward_option, ecmp, child_prefix, debug)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
         self.last_save_t = self.T0  # time of last timestep
         self.alpha = HEURISTIC_ALPHA  # weights updating alpha
         self.rl_test = rl_test

@@ -1,3 +1,4 @@
+from ast import Raise
 import random
 import time
 from config.global_conf import ACTION_DIM, RENDER, LB_PERIOD, B_OFFSET, RENDER_RECEIVE, HEURISTIC_ALPHA
@@ -6,8 +7,8 @@ import numpy as np
 
 class NodeLBLSQ(NodeLB):
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, debug=0):
-        super().__init__(id, child_ids, bucket_size, weights, max_n_child, T0, reward_option, ecmp, child_prefix, debug)
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
+        super().__init__(id, child_ids, bucket_size, weights, max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
         self.po2 = po2 # power-of-2-choices
 
 
@@ -41,9 +42,9 @@ class NodeLBSED(NodeLB):
         Shortest Expected Delay (SED) assigns server based on (queue_len+1)/weight.
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, debug)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
         self.po2 = po2  # power-of-2-choices
         self.b_offset = b_offset
 
@@ -82,9 +83,9 @@ class NodeLBSRT(NodeLB):
         Shortest remaining time (SRT) assigns AS based on sum(cpu_processing_time)/#cpu + sum(io_processing_time)/#io
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, debug)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
         self.po2 = po2
 
     def choose_child(self, flow, t_rest_all):
@@ -121,11 +122,21 @@ class NodeLBSRT(NodeLB):
         assert flow.nexthop == self.id
         flow.update_receive(ts, self.id)
 
-        # select based on actual 
-        t_rest_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts)
-                        for i in self.child_ids]
-        child_id, bucket_id = self.choose_child(flow, t_rest_all)
-
+        # select based on actual
+        if (self.child_prefix == 'as' and self.layer == 1): 
+            t_rest_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts)
+                            for i in self.child_ids]
+            child_id, bucket_id = self.choose_child(flow, t_rest_all)
+        #if the node is on layer 2, we sum th remaining time of its children
+        elif (self.child_prefix == 'lb' and self.layer == 2):
+            t_rest_all = []
+            for i in self.child_ids:
+                node = nodes['{}{:d}'.format(self.child_prefix, i)]
+                t_rest_all.append(sum([nodes['{}{:d}'.format(node.child_prefix, k)].get_t_rest_total(ts) for k in node.child_ids]))
+            child_id, bucket_id = self.choose_child(flow, t_rest_all)
+        else:
+            raise NotImplementedError
+        
         # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
         if RENDER_RECEIVE:
             self.render_receive(ts, flow, child_id, nodes)
@@ -150,7 +161,8 @@ class NodeLBSRT(NodeLB):
         flow.update_send(ts, '{}{}'.format(self.child_prefix, child_id))
         self.send(ts+self.get_t2neighbour(), flow)
 
-        nodes['{}{}'.format(self.child_prefix, child_id)
+        if (self.child_prefix == 'as' and self.layer == 1):
+            nodes['{}{}'.format(self.child_prefix, child_id)
               ].update_pending_fct(flow)
 
 
@@ -160,9 +172,9 @@ class NodeLBGSQ(NodeLB):
         select AS based on global shortest queue
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, debug)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
 
         self.po2 = po2
 
@@ -171,8 +183,9 @@ class NodeLBGSQ(NodeLB):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
             *flow.fields, self._bucket_table, self._bucket_mask)
+        n_flow_on = self._counters['n_flow_on']
         if self.debug > 1:
-            print("@nodeLBOracle {} - n_flow_on: {}".format(self.id, n_flow_on))
+            print("@nodeLBGSQ {} - n_flow_on: {}".format(self.id, n_flow_on))
         if self.po2:
             n_flow_on_2 = {v: qlen_all[i]
                            for i, v in random.sample(list(enumerate(self.child_ids)), 2)}
@@ -199,8 +212,7 @@ class NodeLBGSQ(NodeLB):
         flow.update_receive(ts, self.id)
 
         # select based on actual 
-        qlen_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_n_flow_on()
-                        for i in self.child_ids]       
+        qlen_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_n_flow_on() for i in self.child_ids]       
         child_id, bucket_id = self.choose_child(flow, qlen_all)
 
         # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
@@ -227,15 +239,17 @@ class NodeLBGSQ(NodeLB):
         flow.update_send(ts, '{}{}'.format(self.child_prefix, child_id))
         self.send(ts+self.get_t2neighbour(), flow)
 
-        nodes['{}{}'.format(self.child_prefix, child_id)
+
+        if (self.child_prefix == 'as' and self.layer == 1):
+            nodes['{}{}'.format(self.child_prefix, child_id)
               ].update_pending_fct(flow)
 
 
 class NodeLBActive(NodeLB):
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', lb_period=LB_PERIOD, rtt_min=0.05, rtt_max=0.2, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', lb_period=LB_PERIOD, rtt_min=0.05, rtt_max=0.2, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, debug, lb_period)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug, lb_period)
 
         self.alpha = HEURISTIC_ALPHA
         self.rtt_min = rtt_min
