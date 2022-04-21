@@ -23,7 +23,7 @@ def as_update_capacity(nodes, ts, node_ids, n_worker, mp_level):
 
 def as_try_remove(nodes, ts, node_id):
     global event_buffer
-    t_end = nodes[node_id].queues['worker'].peek_n(1, reverse=True)
+    t_end = max(nodes[node_id].queues['cpu'].peek_n(1, reverse=True), nodes[node_id].queues['io'].peek_n(1, reverse=True))
     if len(t_end) == 0:
         del nodes[node_id]
         if DEBUG > 1:
@@ -32,7 +32,7 @@ def as_try_remove(nodes, ts, node_id):
         t_end = t_end[0][0]
         event_buffer.put(Event(t_end+1e-6, 'as_try_remove', {'node_id': node_id})) 
         if DEBUG > 1:
-            print("there are still {} pending queries @node {}, try next time at {:.3f}s".format(nodes[node_id].queues['worker'].qsize()+nodes[node_id].queues['wait'].qsize(), node_id, t_end))
+            print("there are still {} pending queries @node {}, try next time at {:.3f}s".format(nodes[node_id].queues['cpu'].qsize()+ nodes[node_id].queues['io'].qsize() +nodes[node_id].queues['wait'].qsize(), node_id, t_end))
 
 def as_periodic_log(nodes, ts, node_ids, interval):
     global event_buffer
@@ -56,7 +56,7 @@ def lb_expire_flow(nodes, ts, node_id, flow_id):
     nodes[node_id].expire_flow(ts, flow_id)
 
 
-def lb_add_server(nodes, ts, lbs, ass, weights, n_workers=N_WORKER_BASELINE, mp_levels=1, max_client=AS_MAX_CLIENT):
+def lb_add_server(nodes, ts, lbs, ass, cluster_agent = None, weights, n_workers=N_WORKER_BASELINE, mp_levels=1, max_client=AS_MAX_CLIENT):
     '''
     @brief:
         a control plane event, when we want to add AS nodes and associate them to some LBs. 
@@ -72,15 +72,43 @@ def lb_add_server(nodes, ts, lbs, ass, weights, n_workers=N_WORKER_BASELINE, mp_
         nodes[as_id] = NodeAS(as_id, n_worker, mp_level, max_client)
     for lb in lbs:
         nodes['lb{}'.format(lb)].add_child(ass, weights)
+        
+    #for clustering
+    for lb in lbs:
+        for a in ass:
+            if a not in cluster_agent.lbs_config[lb]['child_ids']:
+                cluster_agent.lbs_config[lb]['child_ids'].append(a)
 
-def lb_remove_server(nodes, ts, lbs, ass):
+def lb_remove_server(nodes, ts, lbs, ass, cluster_agent= None):
+    
     for lb in lbs:
         nodes['lb{}'.format(lb)].remove_child(ass)
+    
     for as_id in ass:
         as_id = 'as{}'.format(as_id)
         ts += 1e-6
-        event_buffer.put(Event(ts, 'as_try_remove',
-                               {'node_id': as_id}), checkfull=False)
+        
+        event_buffer.put(Event(ts, 'as_try_remove', 'external', {'node_id': as_id}), checkfull=False)
+        
+    #for clustering
+    for lb in lbs:
+        for a in ass:
+            if a in cluster_agent.lbs_config[lb]['child_ids']:
+                cluster_agent.lbs_config[lb]['child_ids'].remove(a)
+    
+
+def lb_change_server(nodes, ts, lbs_source, lbs_dest, ass, cluster_agent):
+
+    for s in lbs_source:
+        for d in lbs_dest:
+            for a in ass:
+                if a in cluster_agent.lbs_config[s]['child_ids'] and (a not in cluster_agent.lbs_config[d]['child_ids']):
+                    weight = nodes['lb{}'.format(s)].weights[a]
+                    cluster_agent.lbs_config[s]['child_ids'].remove(a)
+                    nodes['lb{}'.format(s)].remove_child(a)
+                    cluster_agent.lbs_config[d]['child_ids'].append(a)
+                    nodes['lb{}'.format(d)].add_child(a, weight)                
+        
 
 def clt_update_in_traffic(nodes, ts, node_id, app_config_new):
     if DEBUG > 0:
@@ -97,3 +125,13 @@ def clt_send(nodes, ts, node_id):
         print(">> ({:.3f}s) @node {} dispatch flow".format(
             ts, node_id))
     nodes[node_id].dispatch_flow(ts)
+    
+#--------------Clustering events-----------------#
+    
+def cluster_step(nodes, ts, cluster_agent):
+    cluster_agent.step(ts, nodes)
+        
+
+def cluster_update(nodes, ts):
+    if DEBUG > 0:
+        print("clusters updated")

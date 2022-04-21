@@ -78,9 +78,9 @@ methods1 = [
     #"wcmp", # Weighted-Cost Multi-Path (WCMP)
     #"lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
-    # "sed", # Shortest Expected Delay
+    #"sed", # Shortest Expected Delay
     # "sed2", # LSQ + power-of-2-choices
-    # "srt", # Shortest Remaining Time (SRT) (Layer-7)
+    #"srt", # Shortest Remaining Time (SRT) (Layer-7)
     # "srt2", # SRT + power-of-2-choices
     #"gsq", # Global shortest queue (GSQ) (Layer-7)
     #"gsq2", # GSQ + power-of-2-choices·
@@ -106,15 +106,15 @@ methods1 = [
 ]
 methods2 = [
     #=== rule ===#
-    "ecmp", # Equal-Cost Multi-Path (ECMP)
+    #"ecmp", # Equal-Cost Multi-Path (ECMP)
     #"wcmp", # Weighted-Cost Multi-Path (WCMP)
-    "lsq", # Local shortest queue (LSQ)
+    #"lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
-    "sed", # Shortest Expected Delay
+    #"sed", # Shortest Expected Delay
     # "sed2", # LSQ + power-of-2-choices
-    "srt", # Shortest Remaining Time (SRT) (Layer-7)
+    #"srt", # Shortest Remaining Time (SRT) (Layer-7)
     # "srt2", # SRT + power-of-2-choices
-    "gsq", # Global shortest queue (GSQ) (Layer-7)
+    #"gsq", # Global shortest queue (GSQ) (Layer-7)
     #"gsq2", # GSQ + power-of-2-choices·
     # "active-wcmp", # Spotlight, adjust weights based on periodic polling
     #=== heuristic ===#
@@ -134,7 +134,7 @@ methods2 = [
     #"geom-sed", # geometry-based algorithm
     #"geom-sed-w", # geometry-based algorithm
     # === reinforcement learning ===#
-    #"rlb-sac", # SAC model
+    "rlb-sac", # SAC model
 ]
 
 # grid search dimensions

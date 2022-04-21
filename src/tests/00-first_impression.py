@@ -73,7 +73,7 @@ seed = 46
 
 methods = [
     #=== rule ===#
-    "ecmp", # Equal-Cost Multi-Path (ECMP)
+    #"ecmp", # Equal-Cost Multi-Path (ECMP)
     #"wcmp", # Weighted-Cost Multi-Path (WCMP)
     # "lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
@@ -101,7 +101,7 @@ methods = [
     #"geom-sed", # geometry-based algorithm
     #"geom-sed-w", # geometry-based algorithm
     # === reinforcement learning ===#
-    #"rlb-sac", # SAC model
+    "rlb-sac", # SAC model
 ]
 
 # grid search dimensions
@@ -111,7 +111,7 @@ n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
 fct_mus = [0.5] # change this to compare different input traffic distribution
 n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
-n_episode = 3
+n_episode = 1
 fct_io = 0.25
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0

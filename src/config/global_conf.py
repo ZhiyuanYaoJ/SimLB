@@ -65,6 +65,12 @@ LB_UPDATE_PADDING = 'valid'
 
 LB_BUCKET_SIZE = 65536
 
+# ------------------------------------ Clustering----------------------------- #
+
+HIERARCHICAL = False
+CLUSTERING_PERIOD = 0.1
+CLUSTERING_METHOD = 'heuristic'
+
 # ---------------------------------- Client ---------------------------------- #
 
 LOAD_OBSERVE_INTERVAL = 0.5 # every 0.5s count #flow on each AS node

@@ -211,10 +211,19 @@ class NodeLBGSQ(NodeLB):
         assert flow.nexthop == self.id
         flow.update_receive(ts, self.id)
 
-        # select based on actual 
-        qlen_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_n_flow_on() for i in self.child_ids]       
-        child_id, bucket_id = self.choose_child(flow, qlen_all)
+        # select based on actual
+        if (self.child_prefix == 'as' and self.layer == 1):
+            qlen_all = [nodes['{}{:d}'.format(self.child_prefix, i)].get_n_flow_on() for i in self.child_ids]       
+        elif (self.child_prefix == 'lb' and self.layer == 2):
+            qlen_all = []
+            for i in self.child_ids:
+                node = nodes['{}{:d}'.format(self.child_prefix, i)]
+                qlen_all.append(sum([nodes['{}{:d}'.format(node.child_prefix, k)].get_n_flow_on() for k in node.child_ids]))
+        else:
+            raise NotImplementedError
 
+        child_id, bucket_id = self.choose_child(flow, qlen_all)
+        
         # flow = self.evaluate_decision_ground_truth(nodes, child_id, flow)
         if RENDER_RECEIVE:
             self.render_receive(ts, flow, child_id, nodes)

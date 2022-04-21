@@ -772,6 +772,7 @@ class NodeStatelessLB(Node):
         self.child_prefix = child_prefix
         self.layer=layer
         NodeStatelessLB.reset(self)
+
         
 
     def reset(self):
@@ -809,7 +810,7 @@ class NodeStatelessLB(Node):
 
         flow.update_send(ts, '{}{}'.format(self.child_prefix, child_id)) # for now, we only implement for ecmp_random
         self.send(ts+self.get_t2neighbour(), flow)
-
+        
 
     def add_child(self, child_id):
         # convert single as id to a list
@@ -820,7 +821,7 @@ class NodeStatelessLB(Node):
         self.child_ids += child_id
         for id_ in child_id:
             self.weights[id_] = 1.
-
+            
         self.generate_bucket_table()  # update bucket table
 
     def remove_child(self, child_id):
@@ -830,7 +831,7 @@ class NodeStatelessLB(Node):
         for id_ in child_id:
             self.child_ids.remove(id_)
             self.weights[id_] = 0.
-
+            
         self.generate_bucket_table() # update bucket table
         
 
@@ -859,8 +860,8 @@ class NodeLB(NodeStatelessLB):
             assert np.array(list(weights.keys())).any() in range(
                 max_n_child), 'LB {} - weights\' id should be in max_n_child range'.format(self.id)
             self._init_weights[child_ids] = [w for i, w in weights.items() if i in child_ids]
-            # normalize weights
-            self._init_weights /= sum(self._init_weights)
+            # normalize weights (desactivated)
+            # self._init_weights /= sum(self._init_weights)
         self.reward_fn = reward_options[reward_option]
         self.lb_period = lb_period
         NodeLB.reset(self) # to avoid recursive reset
@@ -870,7 +871,11 @@ class NodeLB(NodeStatelessLB):
         @brief:
             reset this node by reinitializing all the parameters and buckets
         '''
-        super().reset()
+        #super().reset()
+        self.weights = self._init_weights
+        self.child_ids = [i for i, v in enumerate(self.weights) if v > 0]
+        self.generate_bucket_table()
+        
         self._bucket_table_avail = np.array([True] * self.bucket_size)
         self._tracked_flows = {}
         # (accumulated) counter of number of untracked flows when a flow arrives meanwhile its corresponding bucket is not available
@@ -942,7 +947,6 @@ class NodeLB(NodeStatelessLB):
 
         # initialization
         res = self._counters
-
         for k, v in self._reservoir.items():
             # for server reservoir buffers
             if isinstance(v, list):
@@ -1063,6 +1067,7 @@ class NodeLB(NodeStatelessLB):
         for id_, w_ in zip(child_id, weights):
             self.weights[id_] = w_
 
+     
         self.generate_bucket_table() # update bucket table
 
     def render_receive(self, ts, flow, chosen_child, nodes=None):
@@ -1279,5 +1284,111 @@ class NodeClient(Node):
                 self.id, self.app_config))
         self.app_engine.update(**self.app_config)  
 
+class ClusteringAgent(object):
+    #Only implemented for 2 Layers
+    
+    global event_buffer
+    
+    def __init__(self, nodes, node_config, method=CLUSTERING_METHOD, debug=0):
+        self.method=method
+        self.threshold = 0.5
+        self.reset(node_config)
+        self.debug = 1
+
+    def register_event(self, ts, event, kwargs={}):
+        '''
+        @brief:
+        push an Event tuple into control plane buffer
+        '''
+        event_buffer.put(Event(ts, event, 'clustering agent',  kwargs), checkfull=False)
+        
+
+        
+    def initial_distribution(self, nodes, node_config):
+        #initialize children for each cluster
+        k, m = divmod(self.n_as, self.n_lbs)
+        for i in self.lbs_config:
+            self.lbs_config[self.n_lbs-i+1]['child_ids'] = list(range((i-1)*k,min((i)*k, self.n_as)))
+        
+        
+    def reset(self, node_config):
+        lb_config={}
+        for k in [k for k in node_config if 'lb' in k]:
+            lb_config.update(node_config[k])
+            
+        self.lbs_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']==1}
+        self.lbp_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']>1}
+        self.as_config = node_config['as']
+        self.n_as = len(self.as_config)
+        self.n_lbs = len(self.lbs_config)
+
+        self.register_event(0.1, 'cluster_step', {'cluster_agent':self}) # kickoff
+        
+    def set_centroids(self, ts, nodes):
+        for i,_ in self.lbs_config.items():
+            parent = nodes['lb{}'.format(i)]
+            array = np.array([parent.get_observation(ts)[REWARD_FEATURE][child_id] for child_id in parent.child_ids])
+            self.lbs_config[i]['centroid']= array.mean()
+            
+        
+    def evaluate(self, ts, nodes, method):
+        change = False
+        node_id, source, destination = 0,0,0
+        print('in evaluation')
+
+
+        i = random.choice(list(self.lbs_config.keys()))
+        parent = nodes['lb{}'.format(i)]
+        counters = parent._counters['n_flow_on'][parent.child_ids]
+        mean = np.mean(counters)
+        array = abs(counters - mean)
+        max = np.max(array)
+        child_id = [child_id for child_id in parent.child_ids if abs(parent._counters['n_flow_on'][child_id]-mean) == max]
+        if len(child_id) != 0: child_id=random.choice(child_id)
+        print(max)
+        
+ 
+        if max > self.threshold and parent._counters['n_flow_on'][child_id] < mean and destination>0:
+            node_id = child_id
+            source = i
+            destination = source-1
+            change = True
+        elif max > self.threshold and parent._counters['n_flow_on'][child_id] >= mean and destination<self.n_lbs+1:
+            node_id = child_id
+            source = i
+            destination = source+1
+            change = True
+        else:
+            change = False
+            
+        if change:
+            print('Change: node as{} needs to be relocated from lb{} to lb {}'.format(node_id, source, destination))
+        else:
+            print('no changes')
+            
+        return change, node_id, source, destination
+
+
+    def step(self, ts, nodes, debug=0):
+        t0 = time.time()  # take the first timestamp
+        change, node_id, source, destination = self.evaluate(ts, nodes, self.method)
+        t1 = time.time()
+        if change:
+            self.change_node(ts+t1-t0, nodes, node_id, source, destination)
+        t2 = time.time()
+        step_delay = t2 - t0
+        ts += step_delay
+        self.register_event(ts, 'cluster_update')
+        if debug > 0:
+            print('cluster updated!')
+        self.register_event(ts + CLUSTERING_PERIOD, 'cluster_step', {'cluster_agent':self} )
+
+    
+    def change_node(self, ts, nodes, child_id, source, destination, debug=1):
+        self.register_event(ts, 'lb_change_server', {'lbs_source':[source], 'lbs_dest':[destination], 'ass':[child_id], 'cluster_agent':self})
+        if debug > 0:
+            print('node as{} changed from lb{} to lb {}'.format(child_id, source, destination))
+    
+    
 # a global queue that stores all events
 event_buffer = PriorityQueue()

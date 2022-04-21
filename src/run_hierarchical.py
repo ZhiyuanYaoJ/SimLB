@@ -1,5 +1,5 @@
 from distutils.command.config import dump_file
-from common.simulator import *
+from common.simulator_hierarchical import *
 from config.exp_hierarchical import *
 
 UNIT_TRAFFIC_RATE = 0

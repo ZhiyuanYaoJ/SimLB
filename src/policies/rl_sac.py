@@ -81,11 +81,11 @@ class NodeRLBSAC(NodeLB):
             print("@nodeLBSAC {} - n_flow_on: {}".format(self.id, n_flow_on))
         # assert len(set(self.child_ids)) == len(self.child_ids)
 
-        score = [(self.b_offset+n_flow_on[i])/self.weights[i]
-                    for i in self.child_ids]
+        score = [(self.b_offset+n_flow_on[i])/self.weights[i] for i in self.child_ids]
 
-        score = [(self.b_offset+score[i])/self.weights[i]
-                    for i in self.child_ids]
+#       score = [(self.b_offset+score[i])/self.weights[i] for i in self.child_ids]
+
+        
         min_n_flow = min(score)
         n_flow_map = zip(self.child_ids, score)
         min_ids = [k for k, v in n_flow_map if v == min_n_flow]
@@ -105,9 +105,11 @@ class NodeRLBSAC(NodeLB):
         obs = self.get_observation(ts)
         feature_as = np.array([obs[k] for k in FEATURE_AS_ALL]).T
         feature_lb = [obs[k] for k in FEATURE_LB_ALL] + list(feature_as[self.child_ids].mean(axis=0)) # feature_lb has lb feature + averaged as feature
-        t_rest_all = np.zeros(self.max_n_child)
-        t_rest_all[self.child_ids] = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts)
-                      for i in self.child_ids]
+        if False:
+            t_rest_all = np.zeros(self.max_n_child)
+            t_rest_all[self.child_ids] = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts) for i in self.child_ids]
+        t_rest_all = None    
+        
         return (self.child_ids, feature_lb, feature_as, t_rest_all) # gt set to rest time
 
     def generate_weight(self, state):
