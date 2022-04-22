@@ -21,7 +21,6 @@ from numpy import savez_compressed
 from config.global_conf import *
 from common.utils import *
 
-ti = 0
 Event = namedtuple('Event', 'time name added_by kwargs')
 
 class Flow:
@@ -394,6 +393,8 @@ class Node(object):
         return random.uniform(1e-6, 1e-5)
 
     def get_t2neighbour(self):
+        if hasattr(self, 'layer') and self.layer > 1:
+            return 0
         return random.uniform(1e-4, 1e-3)
 
     def receive(self):
@@ -775,8 +776,7 @@ class NodeStatelessLB(Node):
         self.child_prefix = child_prefix
         self.layer=layer
         NodeStatelessLB.reset(self)
-
-        
+        self.ti = 0
 
     def reset(self):
         '''
@@ -830,7 +830,7 @@ class NodeStatelessLB(Node):
         t0 = time.time()    
         self.generate_bucket_table()  # update bucket table
         t1 = time.time()
-        ti += t1-t0
+        self.ti += t1-t0
 
     def remove_child(self, child_id):
         if not isinstance(child_id, list): child_id = [child_id] # convert single as id to a list
@@ -843,7 +843,7 @@ class NodeStatelessLB(Node):
         t0 = time.time()    
         self.generate_bucket_table()  # update bucket table
         t1 = time.time()
-        ti += t1-t0
+        self.ti += t1-t0
 
 class NodeLB(NodeStatelessLB):
     '''
@@ -851,7 +851,7 @@ class NodeLB(NodeStatelessLB):
         A basic load balancing that does (weighted) ECMP
     '''
 
-    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', layer=1, debug=0, lb_period=LB_PERIOD):
+    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', layer=1, weights2= None, debug=0, lb_period=LB_PERIOD):
         '''
         @params:
             child_ids: a list of id number of AS which is currently active
@@ -869,12 +869,19 @@ class NodeLB(NodeStatelessLB):
         if weights:
             assert np.array(list(weights.keys())).any() in range(
                 max_n_child), 'LB {} - weights\' id should be in max_n_child range'.format(self.id)
-            self._init_weights[child_ids] = [w for i, w in weights.items() if i in child_ids]
+            
+            #implemented only for 2 layers
+            if self.layer == 2 and weights2 is not None:
+                self._init_weights[child_ids] = [w for i, w in weights2.items() if i in child_ids]
+            elif self.layer == 1:
+                self._init_weights[child_ids] = [w for i, w in weights.items() if i in child_ids]
+            else:
+                raise NotImplementedError   
             # normalize weights (desactivated)
             # self._init_weights /= sum(self._init_weights)
         self.reward_fn = reward_options[reward_option]
         self.lb_period = lb_period
-        NodeLB.reset(self) # to avoid recursive reset
+        NodeLB.reset(self) # to avoid recursive reset  
 
     def reset(self):
         '''
@@ -1080,7 +1087,7 @@ class NodeLB(NodeStatelessLB):
         t0 = time.time()
         self.generate_bucket_table() # update bucket table
         t1 = time.time()
-        ti += t1-t0
+        self.ti += t1-t0
 
     def render_receive(self, ts, flow, chosen_child, nodes=None):
         self.render(ts, nodes)
@@ -1327,7 +1334,7 @@ class ClusteringAgent(object):
         self.n_as = len(self.as_config)
         self.n_lbs = len(self.lbs_config)
 
-        self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
+        #self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
         
 
     def kmeans(self, nodes):

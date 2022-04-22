@@ -63,6 +63,7 @@ def generate_node_config_hierarchical(
         'debug': 0,
         'layer': 2,
         'bucket_size': lbp_bucket_size,
+        'weights2': {}
     }
     
     lbs_template = {
@@ -99,11 +100,11 @@ def generate_node_config_hierarchical(
         
     # For secondary LB
     if 'config' in METHODS[lbs_method].keys():
-            if 'weights' in METHODS[lbs_method]['config'].keys() and METHODS[lbs_method]['config']['weights'] == {}:
-                METHODS[lbs_method]['config']['weights'] = {
-                        i: as_config[i]['n_worker'] for i in as_ids}
-            for i in lbs_config.keys():
-                lbs_config[i].update(METHODS[lbs_method]['config'])
+        if 'weights' in METHODS[lbs_method]['config'].keys() and METHODS[lbs_method]['config']['weights'] == {}:
+            METHODS[lbs_method]['config']['weights'] = {
+                    i: as_config[i]['n_worker'] for i in as_ids}
+        for i in lbs_config.keys():
+            lbs_config[i].update(METHODS[lbs_method]['config'])
     if 'rlb' in lbs_method:
         for i in lbs_config.keys():
             lbs_config[i].update({'logger_dir': log_folder+'/rls.log',
@@ -115,6 +116,13 @@ def generate_node_config_hierarchical(
         if 'weights' in METHODS[lbp_method]['config'].keys() and METHODS[lbp_method]['config']['weights'] == {}:
             METHODS[lbp_method]['config']['weights'] = {
                     i: sum([as_config[k]['n_worker'] for k in lbs_config[i]['child_ids']]) for i in lbs_ids}
+            
+        
+        elif 'weights' in METHODS[lbp_method]['config'].keys() and not METHODS[lbp_method]['config']['weights'] == {}:
+            for i in lbp_config:
+                lbp_config[i].update({'weights2': {i: sum([as_config[k]['n_worker'] for k in lbs_config[i]['child_ids']]) for i in lbs_ids }})
+            
+            
         for i in lbp_config.keys():
             lbp_config[i].update(METHODS[lbp_method]['config'])
     if 'rlb' in lbp_method:
