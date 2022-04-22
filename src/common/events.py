@@ -99,9 +99,6 @@ def lb_remove_server(nodes, ts, lbs, ass, cluster_agent= None):
 
 def lb_change_server(nodes, ts, lbs_source, lbs_dest, ass, cluster_agent):
 
-
-
-
     for s in [lbs_source]:
         for d in [lbs_dest]:
             for a in [ass]:
