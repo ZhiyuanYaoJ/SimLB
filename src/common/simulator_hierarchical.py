@@ -85,7 +85,7 @@ class Simulator:
                 fp.write('-'*10 + ' episode {} ({} flows total)'.format(episode_id, len(flow_all)) + '-'*10 + '\n')
                 for flow_ in flow_all:
                     fp.write("{}\n".format(str(flow_.get_info())))
-                    print(str(flow_.get_info()))
+                    #print(str(flow_.get_info()))
                     if 'reject' in flow_.nexthop:
                         self.n_flow_rejected += 1
 

@@ -16,10 +16,12 @@ from inspect import getfullargspec
 from collections import namedtuple
 from heapq import heappush, heappop, heapify
 
+from sklearn.cluster import KMeans
 from numpy import savez_compressed
 from config.global_conf import *
 from common.utils import *
 
+ti = 0
 Event = namedtuple('Event', 'time name added_by kwargs')
 
 class Flow:
@@ -382,6 +384,7 @@ class Node(object):
     '''
 
     global event_buffer
+    global ti
 
     def __init__(self, id, debug=0):
         self.id = id
@@ -786,14 +789,16 @@ class NodeStatelessLB(Node):
 
 
     def generate_bucket_table(self):
-        weights_ = self.weights/sum(self.weights)
-        self._bucket_table = np.random.choice(
-            range(self.max_n_child), self.bucket_size, p=weights_)
-        if self.debug > 1:
-            unique, counts = np.unique(self._bucket_table, return_counts=True)
-            n_i = dict(zip(unique, counts))
-            for i, n in n_i.items():
-                print("{} {}: {} ({:.2%})".format(self.child_prefix, i, n, n/self.bucket_size))
+
+        if (len(self.child_ids)>0):
+            weights_ = self.weights/sum(self.weights)
+            self._bucket_table = np.random.choice(
+                range(self.max_n_child), self.bucket_size, p=weights_)
+            if self.debug > 1:
+                unique, counts = np.unique(self._bucket_table, return_counts=True)
+                n_i = dict(zip(unique, counts))
+                for i, n in n_i.items():
+                    print("{} {}: {} ({:.2%})".format(self.child_prefix, i, n, n/self.bucket_size))
 
     def receive(self, ts, flow, nodes):
         '''
@@ -821,8 +826,11 @@ class NodeStatelessLB(Node):
         self.child_ids += child_id
         for id_ in child_id:
             self.weights[id_] = 1.
-            
+        
+        t0 = time.time()    
         self.generate_bucket_table()  # update bucket table
+        t1 = time.time()
+        ti += t1-t0
 
     def remove_child(self, child_id):
         if not isinstance(child_id, list): child_id = [child_id] # convert single as id to a list
@@ -832,8 +840,10 @@ class NodeStatelessLB(Node):
             self.child_ids.remove(id_)
             self.weights[id_] = 0.
             
-        self.generate_bucket_table() # update bucket table
-        
+        t0 = time.time()    
+        self.generate_bucket_table()  # update bucket table
+        t1 = time.time()
+        ti += t1-t0
 
 class NodeLB(NodeStatelessLB):
     '''
@@ -1067,8 +1077,10 @@ class NodeLB(NodeStatelessLB):
         for id_, w_ in zip(child_id, weights):
             self.weights[id_] = w_
 
-     
+        t0 = time.time()
         self.generate_bucket_table() # update bucket table
+        t1 = time.time()
+        ti += t1-t0
 
     def render_receive(self, ts, flow, chosen_child, nodes=None):
         self.render(ts, nodes)
@@ -1279,7 +1291,7 @@ class NodeClient(Node):
             triggered by event 'clt_update_in_traffic'
         '''
         self.app_config.update(app_config)
-        if self.debug > 0:
+        if DEBUG > 0:
             print(">> @client {} update input traffic info to {}".format(
                 self.id, self.app_config))
         self.app_engine.update(**self.app_config)  
@@ -1302,14 +1314,6 @@ class ClusteringAgent(object):
         '''
         event_buffer.put(Event(ts, event, 'clustering agent',  kwargs), checkfull=False)
         
-
-        
-    def initial_distribution(self, nodes, node_config):
-        #initialize children for each cluster
-        k, m = divmod(self.n_as, self.n_lbs)
-        for i in self.lbs_config:
-            self.lbs_config[self.n_lbs-i+1]['child_ids'] = list(range((i-1)*k,min((i)*k, self.n_as)))
-        
         
     def reset(self, node_config):
         lb_config={}
@@ -1318,77 +1322,75 @@ class ClusteringAgent(object):
             
         self.lbs_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']==1}
         self.lbp_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']>1}
+        self.lbss = list(self.lbs_config.keys())
         self.as_config = node_config['as']
         self.n_as = len(self.as_config)
         self.n_lbs = len(self.lbs_config)
 
-        self.register_event(0.1, 'cluster_step', {'cluster_agent':self}) # kickoff
+        self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
         
-    def set_centroids(self, ts, nodes):
-        for i,_ in self.lbs_config.items():
-            parent = nodes['lb{}'.format(i)]
-            array = np.array([parent.get_observation(ts)[REWARD_FEATURE][child_id] for child_id in parent.child_ids])
-            self.lbs_config[i]['centroid']= array.mean()
-            
+
+    def kmeans(self, nodes):
+        ass = []
+        source = []
+        weights = []
+        clusters = []
+        noise = np.random.normal(scale = 0.01, size = self.n_as)
         
-    def evaluate(self, ts, nodes, method):
+        for lb in self.lbs_config.keys():
+            parent = nodes['lb{}'.format(lb)]
+            for child_id in parent.child_ids:
+                ass.append(child_id)
+                source.append(lb)
+                weights.append(parent.weights[child_id]) 
+                
+        weights=np.array(weights) + noise
+        kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
+        destination = np.array(self.lbss)[kmeans.labels_]
+        
+        return zip(ass, source, destination)
+        
+    def evaluate(self, nodes, method='kmeans'):
         change = False
-        node_id, source, destination = 0,0,0
-        print('in evaluation')
-
-
-        i = random.choice(list(self.lbs_config.keys()))
-        parent = nodes['lb{}'.format(i)]
-        counters = parent._counters['n_flow_on'][parent.child_ids]
-        mean = np.mean(counters)
-        array = abs(counters - mean)
-        max = np.max(array)
-        child_id = [child_id for child_id in parent.child_ids if abs(parent._counters['n_flow_on'][child_id]-mean) == max]
-        if len(child_id) != 0: child_id=random.choice(child_id)
-        print(max)
+        array = []
+        if DEBUG > 0:
+            print('in evaluation')
         
- 
-        if max > self.threshold and parent._counters['n_flow_on'][child_id] < mean and destination>0:
-            node_id = child_id
-            source = i
-            destination = source-1
+        if method == 'kmeans':
+            array = self.kmeans(nodes)
             change = True
-        elif max > self.threshold and parent._counters['n_flow_on'][child_id] >= mean and destination<self.n_lbs+1:
-            node_id = child_id
-            source = i
-            destination = source+1
-            change = True
-        else:
-            change = False
-            
-        if change:
-            print('Change: node as{} needs to be relocated from lb{} to lb {}'.format(node_id, source, destination))
-        else:
-            print('no changes')
-            
-        return change, node_id, source, destination
+        
+        return change, array
 
 
     def step(self, ts, nodes, debug=0):
+
+        
         t0 = time.time()  # take the first timestamp
-        change, node_id, source, destination = self.evaluate(ts, nodes, self.method)
+        change, array = self.evaluate(nodes, self.method)
         t1 = time.time()
         if change:
-            self.change_node(ts+t1-t0, nodes, node_id, source, destination)
+            self.change_node(ts+t1-t0, nodes, array)
         t2 = time.time()
         step_delay = t2 - t0
         ts += step_delay
         self.register_event(ts, 'cluster_update')
         if debug > 0:
             print('cluster updated!')
+        #self.display(nodes)
         self.register_event(ts + CLUSTERING_PERIOD, 'cluster_step', {'cluster_agent':self} )
-
-    
-    def change_node(self, ts, nodes, child_id, source, destination, debug=1):
-        self.register_event(ts, 'lb_change_server', {'lbs_source':[source], 'lbs_dest':[destination], 'ass':[child_id], 'cluster_agent':self})
-        if debug > 0:
-            print('node as{} changed from lb{} to lb {}'.format(child_id, source, destination))
-    
+        
+    def change_node(self, ts, nodes, array, debug=1):
+        for a in array:
+            ts+=1e-6
+            if a[1]==a[2]:
+                continue
+            self.register_event(ts, 'lb_change_server', {'lbs_source':a[1], 'lbs_dest':a[2], 'ass':a[0], 'cluster_agent':self})
+            
+    def display(self, nodes):
+        for i in self.lbss:
+            for j in nodes['lb{}'.format(i)].child_ids:
+                print('in cluster {}, weights = {}'.format('lb{}'.format(i), nodes['lb{}'.format(i)].weights[j]))
     
 # a global queue that stores all events
 event_buffer = PriorityQueue()

@@ -33,6 +33,7 @@ def generate_node_config_hierarchical(
     n_worker_baseline=N_WORKER_BASELINE, 
     n_worker2change=N_WORKER2CHANGE, 
     n_worker_multiplier=N_WORKER_MULTIPLIER,
+    n_worker_multiplier_distribution=N_WORKER_MULTIPLIER_DISTRIBUTION,
     as_mp_level=AS_MULTIPROCESS_LEVEL,
     lbp_bucket_size=LBP_BUCKET_SIZE,
     lbs_bucket_size=LBS_BUCKET_SIZE,
@@ -88,8 +89,13 @@ def generate_node_config_hierarchical(
     for i in lbs_config:
         lbs_config[i]['child_ids'] = list(range((i-1)*k,min((i)*k, n_as)))
 
-    for i in range(n_worker2change):  # update half as configuration
-        as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
+    #for i in range(n_worker2change):  # update half as configuration
+        #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
+        
+    for i in as_config:
+        as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})        
+        
+        
         
     # For secondary LB
     if 'config' in METHODS[lbs_method].keys():
@@ -116,7 +122,6 @@ def generate_node_config_hierarchical(
             lbp_config[i].update({'logger_dir': log_folder+'/rlp.log',
                                  'rl_test': rl_test})
     
-
     
     if lbp_method == lbs_method:
         lb_config = {**lbp_config, **lbs_config}
@@ -139,7 +144,7 @@ NODE_CONFIG = {}
 
 # ---------------------------------------------------------------------------- #
 #                             Control Plane Events                             #
-# ---------------------------------------------------------------------------- #
+# --------------------------------- ------------------------------------------- #
 
 CP_EVENTS2ADD = [
     # (ts, event_name, added_by, **kwargs)

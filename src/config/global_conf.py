@@ -32,6 +32,7 @@ AS_MULTIPROCESS_LEVEL = 1
 # in terms of server capacity variance
 N_WORKER2CHANGE = 0.5
 N_WORKER_MULTIPLIER = 2
+N_WORKER_MULTIPLIER_DISTRIBUTION = [0.2, 0.4, 0.3, 0.1, 0]
 
 AS_MAX_CLIENT = 64
 
@@ -69,7 +70,7 @@ LB_BUCKET_SIZE = 65536
 
 HIERARCHICAL = False
 CLUSTERING_PERIOD = 0.1
-CLUSTERING_METHOD = 'heuristic'
+CLUSTERING_METHOD = 'kmeans'
 
 # ---------------------------------- Client ---------------------------------- #
 

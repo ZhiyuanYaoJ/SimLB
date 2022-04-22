@@ -7,7 +7,7 @@
 #   - Update bucket table                                                      #
 #   - Step (Render and generate new weights)                                   #
 # ---------------------------------------------------------------------------- #
-DEBUG = 1
+DEBUG = 0
 from config.global_conf import *
 from common.entities import Event, NodeAS, event_buffer
 
@@ -56,7 +56,7 @@ def lb_expire_flow(nodes, ts, node_id, flow_id):
     nodes[node_id].expire_flow(ts, flow_id)
 
 
-def lb_add_server(nodes, ts, lbs, ass, cluster_agent = None, weights, n_workers=N_WORKER_BASELINE, mp_levels=1, max_client=AS_MAX_CLIENT):
+def lb_add_server(nodes, ts, lbs, ass, cluster_agent = None, weights=[1], n_workers=N_WORKER_BASELINE, mp_levels=1, max_client=AS_MAX_CLIENT):
     '''
     @brief:
         a control plane event, when we want to add AS nodes and associate them to some LBs. 
@@ -99,16 +99,19 @@ def lb_remove_server(nodes, ts, lbs, ass, cluster_agent= None):
 
 def lb_change_server(nodes, ts, lbs_source, lbs_dest, ass, cluster_agent):
 
-    for s in lbs_source:
-        for d in lbs_dest:
-            for a in ass:
+
+
+
+    for s in [lbs_source]:
+        for d in [lbs_dest]:
+            for a in [ass]:
                 if a in cluster_agent.lbs_config[s]['child_ids'] and (a not in cluster_agent.lbs_config[d]['child_ids']):
                     weight = nodes['lb{}'.format(s)].weights[a]
                     cluster_agent.lbs_config[s]['child_ids'].remove(a)
                     nodes['lb{}'.format(s)].remove_child(a)
                     cluster_agent.lbs_config[d]['child_ids'].append(a)
-                    nodes['lb{}'.format(d)].add_child(a, weight)                
-        
+                    nodes['lb{}'.format(d)].add_child(a, weight) 
+
 
 def clt_update_in_traffic(nodes, ts, node_id, app_config_new):
     if DEBUG > 0:
