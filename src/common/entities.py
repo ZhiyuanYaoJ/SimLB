@@ -383,7 +383,6 @@ class Node(object):
     '''
 
     global event_buffer
-    global ti
 
     def __init__(self, id, debug=0):
         self.id = id
@@ -776,7 +775,7 @@ class NodeStatelessLB(Node):
         self.child_prefix = child_prefix
         self.layer=layer
         NodeStatelessLB.reset(self)
-        self.ti = 0
+
 
     def reset(self):
         '''
@@ -826,11 +825,8 @@ class NodeStatelessLB(Node):
         self.child_ids += child_id
         for id_ in child_id:
             self.weights[id_] = 1.
-        
-        t0 = time.time()    
+
         self.generate_bucket_table()  # update bucket table
-        t1 = time.time()
-        self.ti += t1-t0
 
     def remove_child(self, child_id):
         if not isinstance(child_id, list): child_id = [child_id] # convert single as id to a list
@@ -839,11 +835,8 @@ class NodeStatelessLB(Node):
         for id_ in child_id:
             self.child_ids.remove(id_)
             self.weights[id_] = 0.
-            
-        t0 = time.time()    
+  
         self.generate_bucket_table()  # update bucket table
-        t1 = time.time()
-        self.ti += t1-t0
 
 class NodeLB(NodeStatelessLB):
     '''
@@ -1072,7 +1065,7 @@ class NodeLB(NodeStatelessLB):
         assert fct > 0
         self._reservoir['fct'][child_id].put(ts, fct)
 
-    def add_child(self, child_id, weights=[1]):
+    def add_child(self, child_id, weights):
         if not isinstance(child_id, list): child_id = [child_id] # convert single as id to a list
         if not weights:
             weights = [np.mean(self.weights[self.child_ids])] * len(child_id)
@@ -1080,14 +1073,29 @@ class NodeLB(NodeStatelessLB):
         # sanity check
         assert len(child_id) == len(weights)
         assert len(set(child_id) - set(range(self.max_n_child))) == 0 and len(set(child_id) - set(self.child_ids)) == len(child_id) # child_id to add should be within legal AS range and beyond current active AS set
+        
         self.child_ids += child_id
         for id_, w_ in zip(child_id, weights):
             self.weights[id_] = w_
 
-        t0 = time.time()
+
         self.generate_bucket_table() # update bucket table
-        t1 = time.time()
-        self.ti += t1-t0
+
+        
+    def switch_child(self, child_id_add, child_id_remove, weights):
+        
+        if not weights:
+            weights = [np.mean(self.weights[self.child_ids])] * len(child_id_add)
+            
+        for id_, w_ in zip(child_id_add, weights):
+            self.weights[id_] = w_
+        
+        self.child_ids += child_id_add
+        for id_ in child_id_remove:
+            self.child_ids.remove(id_)
+            self.weights[id_] = 0.
+            
+        self.generate_bucket_table() # update bucket table
 
     def render_receive(self, ts, flow, chosen_child, nodes=None):
         self.render(ts, nodes)
@@ -1313,6 +1321,9 @@ class ClusteringAgent(object):
         self.threshold = 0.5
         self.reset(node_config)
         self.debug = 1
+        self.kmeans = None
+        self.cluster_centers = None
+        self.noise = np.random.normal(scale = 0.05, size = self.n_as)
 
     def register_event(self, ts, event, kwargs={}):
         '''
@@ -1334,16 +1345,17 @@ class ClusteringAgent(object):
         self.n_as = len(self.as_config)
         self.n_lbs = len(self.lbs_config)
 
-        #self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
+        self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
         
 
-    def kmeans(self, nodes):
+    def kmeans_algorithm(self, nodes):
         ass = []
         source = []
         weights = []
-        clusters = []
-        noise = np.random.normal(scale = 0.01, size = self.n_as)
+        change = False
         
+        
+
         for lb in self.lbs_config.keys():
             parent = nodes['lb{}'.format(lb)]
             for child_id in parent.child_ids:
@@ -1351,28 +1363,36 @@ class ClusteringAgent(object):
                 source.append(lb)
                 weights.append(parent.weights[child_id]) 
                 
-        weights=np.array(weights) + noise
-        kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
-        destination = np.array(self.lbss)[kmeans.labels_]
+        weights=np.array(weights)
+        weights+=self.noise
         
-        return zip(ass, source, destination)
+        if self.cluster_centers is None:
+            self.kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
+            destination = np.array(self.lbss)[self.kmeans.labels_]
+            change = True
+        else:
+            prediction = self.kmeans.predict(weights.reshape(-1,1))
+            destination = np.array(self.lbss)[prediction]
+            for i,pred in enumerate(prediction):
+                if source[i] != destination[i] and abs(weights[i]-self.cluster_centers[pred]) - abs(weights[i]-self.cluster_centers[pred]) < 0.1: # if too small a difference, don't consider it. This improves stability
+                    destination[i] = source[i]
+                elif source[i] != destination[i]: change = True
+        self.cluster_centers = self.kmeans.cluster_centers_
+
+        
+        return change, zip(ass, source, destination)
         
     def evaluate(self, nodes, method='kmeans'):
         change = False
         array = []
         if DEBUG > 0:
             print('in evaluation')
-        
-        if method == 'kmeans':
-            array = self.kmeans(nodes)
-            change = True
-        
+        if method == 'kmeans':            
+            change, array = self.kmeans_algorithm(nodes)
         return change, array
 
 
     def step(self, ts, nodes, debug=0):
-
-        
         t0 = time.time()  # take the first timestamp
         change, array = self.evaluate(nodes, self.method)
         t1 = time.time()
@@ -1380,6 +1400,7 @@ class ClusteringAgent(object):
             self.change_node(ts+t1-t0, nodes, array)
         t2 = time.time()
         step_delay = t2 - t0
+        #print(step_delay)
         ts += step_delay
         self.register_event(ts, 'cluster_update')
         if debug > 0:
@@ -1388,11 +1409,21 @@ class ClusteringAgent(object):
         self.register_event(ts + CLUSTERING_PERIOD, 'cluster_step', {'cluster_agent':self} )
         
     def change_node(self, ts, nodes, array, debug=1):
+
+        change = {i:([], [], []) for i in self.lbs_config} # load balancer:([nodes to add], [nodes to remove], [weights to add])
+        
         for a in array:
-            ts+=1e-6
             if a[1]==a[2]:
                 continue
-            self.register_event(ts, 'lb_change_server', {'lbs_source':a[1], 'lbs_dest':a[2], 'ass':a[0], 'cluster_agent':self})
+            change[a[2]][0].append(a[0])
+            change[a[1]][1].append(a[0])
+            change[a[2]][2].append(nodes['lb{}'.format(a[1])].weights[a[0]])
+        
+        for lb in change:
+            if len(change[lb][0]) + len(change[lb][1]) == 0: continue
+            ts+=1e-6
+            self.register_event(ts, 'lb_change_server', {'lbs':lb, 'nodes_to_add':change[lb][0], 'nodes_to_remove':change[lb][1], 'weights':change[lb][2], 'cluster_agent':self})
+
             
     def display(self, nodes):
         for i in self.lbss:

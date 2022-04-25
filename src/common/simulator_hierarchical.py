@@ -85,7 +85,7 @@ class Simulator:
                 fp.write('-'*10 + ' episode {} ({} flows total)'.format(episode_id, len(flow_all)) + '-'*10 + '\n')
                 for flow_ in flow_all:
                     fp.write("{}\n".format(str(flow_.get_info())))
-                    #print(str(flow_.get_info()))
+                    print(str(flow_.get_info()))
                     if 'reject' in flow_.nexthop:
                         self.n_flow_rejected += 1
 
@@ -135,22 +135,6 @@ class Simulator:
             msg = '*** [ real {:.3f}s | sim. {:.3f}s ] end of episode {} - {} flows finished total - {} events pending ***'
             print(msg.format(time.time() - t0, sim_time, episode_id, self.n_flow_done, event_buffer.qsize()))
 
-        for node in self.nodes.values():
-            if hasattr(node, 'ti'):
-                #print (node.ti)
-                pass
-             
-        for node in self.nodes.values():
-
-            if hasattr(node, 'layer') and node.layer > 1:
-                
-                for i in node.child_ids:
-                    a = node.weights[i]
-                    s=0
-                    for j in self.nodes['lb{}'.format(i)].child_ids:
-                        s += self.nodes['as{}'.format(j)].n_worker
-                    print('lb{} as weight {} for worker {}'.format(i, a, s))
-                   
     
         # when the episode finishes
         # 1. we dump all finished flows into a log file if the log file is given

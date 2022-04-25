@@ -97,17 +97,12 @@ def lb_remove_server(nodes, ts, lbs, ass, cluster_agent= None):
                 cluster_agent.lbs_config[lb]['child_ids'].remove(a)
     
 
-def lb_change_server(nodes, ts, lbs_source, lbs_dest, ass, cluster_agent):
+def lb_change_server(nodes, ts, lbs, nodes_to_add, nodes_to_remove, weights, cluster_agent):
+    
 
-    for s in [lbs_source]:
-        for d in [lbs_dest]:
-            for a in [ass]:
-                if a in cluster_agent.lbs_config[s]['child_ids'] and (a not in cluster_agent.lbs_config[d]['child_ids']):
-                    weight = nodes['lb{}'.format(s)].weights[a]
-                    cluster_agent.lbs_config[s]['child_ids'].remove(a)
-                    nodes['lb{}'.format(s)].remove_child(a)
-                    cluster_agent.lbs_config[d]['child_ids'].append(a)
-                    nodes['lb{}'.format(d)].add_child(a, weight) 
+    nodes['lb{}'.format(lbs)].switch_child(nodes_to_add, nodes_to_remove, weights)
+    if DEBUG > 1: print(">> ({:.3f}s) @node {} add {} remove {}".format(ts, lbs, nodes_to_add, nodes_to_remove))
+
 
 
 def clt_update_in_traffic(nodes, ts, node_id, app_config_new):
