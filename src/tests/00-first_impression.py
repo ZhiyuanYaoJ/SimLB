@@ -69,7 +69,7 @@ def add_rates(tasks, rates):
     return final_task
 
 
-seed = 46
+seed = 45
 
 methods = [
     #=== rule ===#
@@ -105,17 +105,17 @@ methods = [
 ]
 
 # grid search dimensions
-n_lbs = [1]
-n_ass = [64]
+n_lb = [1]
+n_ass = [8]
 n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
 fct_mus = [0.5] # change this to compare different input traffic distribution
 n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
-n_episode = 1
+n_episode = 3
 fct_io = 0.25
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(5e1)
+n_flow_total = int(5e2)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change bucket size
@@ -130,7 +130,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
-    for n_lb in n_lbs:
+    for n_lb in n_lb:
         for n_as in n_ass:
             for n_worker_multiplier in n_worker_multipliers:
                 for fct_mu in fct_mus:

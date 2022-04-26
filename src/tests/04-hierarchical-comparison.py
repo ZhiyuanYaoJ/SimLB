@@ -74,7 +74,7 @@ seed = 46
 
 methods1 = [
     #=== rule ===#
-    "ecmp", # Equal-Cost Multi-Path (ECMP)
+    #"ecmp", # Equal-Cost Multi-Path (ECMP)
     #"wcmp", # Weighted-Cost Multi-Path (WCMP)
     #"lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
@@ -107,7 +107,7 @@ methods1 = [
 methods2 = [
     #=== rule ===#
     #"ecmp", # Equal-Cost Multi-Path (ECMP)
-    "wcmp", # Weighted-Cost Multi-Path (WCMP)
+    #"wcmp", # Weighted-Cost Multi-Path (WCMP)
     #"lsq", # Local shortest queue (LSQ)
     # "lsq2", # LSQ + power-of-2-choices
     #"sed", # Shortest Expected Delay
@@ -136,6 +136,17 @@ methods2 = [
     # === reinforcement learning ===#
     #"rlb-sac", # SAC model
 ]
+methods = [
+    # [method 1, method2, auto_clustering]
+    ["rlb-sac", 'rlb-sac', False],
+    ["rlb-sac", 'lsq', False],
+    ["rlb-sac", 'ecmp', False],
+    ["wcmp", 'lsq', True], #Spotlight+LSQ
+    ["wcmp", 'ecmp', True], #Spotlight
+    ["ecmp", 'ecmp', False], #Spotlight
+    
+    
+]
 
 # grid search dimensions
 n_lbps = [1]
@@ -149,7 +160,7 @@ n_episode = 3
 fct_io = 0.25
 setup_fmt = '{}lbp-{}lbs-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(5e2)
+n_flow_total = int(5e4)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change load banlancer period
@@ -175,14 +186,17 @@ if __name__ == "__main__":  # confirms that the code is under main function
                         print(setup)
                         cmd_preamable = 'python3 run_hierarchical.py --n-lbp {} --n-lbs {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {} --dump-all'.format(
                             n_lbp, n_lbs, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
-                        for method1 in methods1:
-                            for method2 in methods2:
-                                cmd = cmd_preamable + ' -m1 {}'.format(method1)
-                                cmd = cmd + ' -m2 {}'.format(method2)
-                                log_folder = '/'.join([data_dir, setup, method1 + method2])
-                                tasks.append([cmd, log_folder])
-                                Path(log_folder).mkdir(parents=True, exist_ok=True)
-                                print('task : {}', cmd)
+                        for method in methods:
+                            method1 = method[0]
+                            method2 = method[1]
+                            auto_clustering=method[2]
+                            cmd = cmd_preamable + ' -m1 {}'.format(method1)
+                            cmd = cmd + ' -m2 {}'.format(method2)
+                            cmd = cmd + ' --auto-clustering {}'.format(auto_clustering)
+                            log_folder = '/'.join([data_dir, setup, method1 + method2])
+                            tasks.append([cmd, log_folder])
+                            Path(log_folder).mkdir(parents=True, exist_ok=True)
+                            print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
 
     total_task = len(final_tasks)

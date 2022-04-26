@@ -2,7 +2,7 @@
 import random
 import time
 import numpy as np
-from config.global_conf import ACTION_DIM, RENDER, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD
+from config.global_conf import ACTION_DIM, RENDER, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD, DEBUG
 from common.entities import NodeLB
 from policies.model.sac_v2 import *
 
@@ -14,7 +14,7 @@ SAC_training_confs = {'hidden_dim': 512,
                       'reward_scale': 10.,
                       'save_interval': 100,  # time interval for saving models, in seconds
                       'AUTO_ENTROPY': True,
-                      'model_path': 'rl/sac_v2',
+                      'model_path': 'sac_v2',
                       }
 
 DETERMINISTIC = False
@@ -160,7 +160,9 @@ class NodeRLBSAC(NodeLB):
         self.last_action = self.weights
 
         step_delay = t1 - t0 + t_gen_weight  # just ignore train time
-        print('DEBUG: step_delay train {:.3f}s'.format(step_delay))
+        
+        if self.debug > 1:
+            print('DEBUG: step_delay train {:.3f}s'.format(step_delay))
 
         # save model if necessary
         if t0 - self.last_save_t > SAC_training_confs['save_interval']:
@@ -174,8 +176,9 @@ class NodeRLBSAC(NodeLB):
         if RENDER:
             self.render(ts, state)
 
-        print(">> ({:.3f}s) in {}: new weights {}".format(
-            ts, self.__class__, self.weights[self.child_ids]))
+        if self.debug > 1:
+            print(">> ({:.3f}s) in {}: new weights {}".format(
+                ts, self.__class__, self.weights[self.child_ids]))
 
     def train(self):
         '''
@@ -189,7 +192,7 @@ class NodeRLBSAC(NodeLB):
                     SAC_training_confs['batch_size'],
                     reward_scale=SAC_training_confs['reward_scale'],
                     auto_entropy=SAC_training_confs['AUTO_ENTROPY'],
-                    target_entropy=-1.*self.action_dim,
+                    target_entropy=-1.*ACTION_DIM,
                 )
 
     def render(self, ts, state):

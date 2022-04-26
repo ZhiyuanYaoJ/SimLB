@@ -22,6 +22,7 @@ import struct
 #--- MACROS ---#
 DEVICE = torch.device("cpu")
 REPLAY_BUFFER_SIZE = 3000
+DEBUG = 0
 
 #--- Initialization ---#
 
@@ -358,7 +359,7 @@ class SAC_Trainer():
                  action_dim,
                  logger=None):
         self.replay_buffer = replay_buffer
-        print(DEVICE)
+        if DEBUG > 0 : print(DEVICE)
         self.soft_q_net1 = SoftQNetwork(n_feature_as, n_feature_lb, action_dim,
                                         hidden_dim).to(DEVICE)
         self.soft_q_net2 = SoftQNetwork(n_feature_as, n_feature_lb, action_dim,

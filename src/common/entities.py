@@ -844,7 +844,7 @@ class NodeLB(NodeStatelessLB):
         A basic load balancing that does (weighted) ECMP
     '''
 
-    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', layer=1, weights2= None, debug=0, lb_period=LB_PERIOD):
+    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', layer=1, weights2= None, lb_period=LB_PERIOD, debug=0):
         '''
         @params:
             child_ids: a list of id number of AS which is currently active
@@ -866,12 +866,14 @@ class NodeLB(NodeStatelessLB):
             #implemented only for 2 layers
             if self.layer == 2 and weights2 is not None:
                 self._init_weights[child_ids] = [w for i, w in weights2.items() if i in child_ids]
+            elif self.layer == 2 and weights2 is None:
+                self._init_weights[child_ids] = [w for i, w in weights.items() if i in child_ids]
             elif self.layer == 1:
                 self._init_weights[child_ids] = [w for i, w in weights.items() if i in child_ids]
             else:
                 raise NotImplementedError   
             # normalize weights (desactivated)
-            # self._init_weights /= sum(self._init_weights)
+            #self._init_weights /= sum(self._init_weights)
         self.reward_fn = reward_options[reward_option]
         self.lb_period = lb_period
         NodeLB.reset(self) # to avoid recursive reset  
@@ -1257,6 +1259,13 @@ class NodeClient(Node):
             if isinstance(v, np.ndarray):
                 res[k] = v.tolist()
         self.summary.append(res)
+        
+        
+        print('fairness-avg : {}'.format(res['fairness-avg']))
+        print('over-avg : {}'.format(res['over-avg']))
+        print('fct-avg : {}'.format(res['fct-avg']))
+                
+            
         return res
         
     def receive(self, ts, flow, nodes):
@@ -1354,14 +1363,13 @@ class ClusteringAgent(object):
         weights = []
         change = False
         
-        
-
         for lb in self.lbs_config.keys():
             parent = nodes['lb{}'.format(lb)]
             for child_id in parent.child_ids:
                 ass.append(child_id)
                 source.append(lb)
-                weights.append(parent.weights[child_id]) 
+                weights.append(float(nodes['as{}'.format(child_id)].n_worker))
+                #weights.append(parent.weights[child_id]) 
                 
         weights=np.array(weights)
         weights+=self.noise
@@ -1410,7 +1418,7 @@ class ClusteringAgent(object):
         
     def change_node(self, ts, nodes, array, debug=1):
 
-        change = {i:([], [], []) for i in self.lbs_config} # load balancer:([nodes to add], [nodes to remove], [weights to add])
+        change = {i:([], [], []) for i in self.lbss} # load balancer:([nodes to add], [nodes to remove], [weights to add])
         
         for a in array:
             if a[1]==a[2]:
@@ -1428,7 +1436,7 @@ class ClusteringAgent(object):
     def display(self, nodes):
         for i in self.lbss:
             for j in nodes['lb{}'.format(i)].child_ids:
-                print('in cluster {}, weights = {}'.format('lb{}'.format(i), nodes['lb{}'.format(i)].weights[j]))
+                print('in cluster {}, weights = {}, n_worker = {}'.format('lb{}'.format(i), nodes['lb{}'.format(i)].weights[j], nodes['as{}'.format(j)].n_worker))
     
 # a global queue that stores all events
 event_buffer = PriorityQueue()

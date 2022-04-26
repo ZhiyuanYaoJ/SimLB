@@ -40,7 +40,7 @@ class Simulator:
             for i, conf in config.items():
                 node_id = '{}{}'.format(node_type_prefix, i)
                 self.nodes[node_id] = NODE_MAP[node_type](node_id, **conf)
-
+                
 
     def reset(self):
         self.n_flow_done = 0

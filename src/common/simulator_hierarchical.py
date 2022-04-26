@@ -21,12 +21,14 @@ class Simulator:
             t_episode=EPISODE_LEN,
             t_episode_inc=EPISODE_LEN_INC,
             n_flow_total=N_FLOW_TOTAL,
+            auto_clustering = False,
             debug=0):
         self.node_config = node_config
         self.cp_events = cp_events
         self.logfolder = logfolder
         Path(logfolder).mkdir(parents=True, exist_ok=True)
         self.dump_all_flow = dump_all_flow
+        self.auto_clustering = auto_clustering
         self.debug = debug
         self.nodes = {}
         self.t_episode = t_episode
@@ -55,7 +57,8 @@ class Simulator:
         self.nodes = {}
         self.init_nodes()
 
-        self.clustering_agent = ClusteringAgent(self.nodes, self.node_config, method = CLUSTERING_METHOD, debug=0)
+        if self.auto_clustering: 
+            self.clustering_agent = ClusteringAgent(self.nodes, self.node_config, method = CLUSTERING_METHOD, debug=0)
         
 
 

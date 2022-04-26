@@ -28,8 +28,6 @@ def init_global_variables(args):
         log_folder=args.log_folder,
         rl_test=args.rl_test,
         debug=DEBUG)
- 
-
 
     fct_mu = args.cpu_fct_mu
     if args.process_n_stage > 1:
@@ -63,6 +61,7 @@ if __name__ == '__main__':
                     t_episode=args.t_stop,
                     t_episode_inc=args.t_inc,
                     n_flow_total=args.n_flow_total,
+                    auto_clustering=args.auto_clustering, 
                     debug=DEBUG)
 
     simulator.run(args.n_episode, args.first_episode_id)

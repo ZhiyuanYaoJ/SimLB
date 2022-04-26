@@ -42,9 +42,9 @@ class NodeLBSED(NodeLB):
         Shortest Expected Delay (SED) assigns server based on (queue_len+1)/weight.
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, layer=1, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, layer=1, weights2= None, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, weights2, debug)
         self.po2 = po2  # power-of-2-choices
         self.b_offset = b_offset
 

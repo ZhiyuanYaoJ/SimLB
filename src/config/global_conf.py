@@ -325,6 +325,9 @@ parser.add_argument('-m1', action='store', default='ecmp', dest='method1',
 parser.add_argument('-m2', action='store', default='ecmp', dest='method2',
                     help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
 
+parser.add_argument('--auto-clustering', action='store', default=False, dest='auto_clustering',
+                    help='Wether ass should be regrouped among equal size')
+
 parser.add_argument('--dump-all', action='store_true', default=False, dest='dump_all_flow',
                     help='Whether dump all the flows in a file')
 
