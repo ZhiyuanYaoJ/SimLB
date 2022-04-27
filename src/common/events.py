@@ -36,6 +36,9 @@ def as_try_remove(nodes, ts, node_id):
 
 def as_periodic_log(nodes, ts, node_ids, interval):
     global event_buffer
+    if node_ids is None:
+        node_ids = [id for id in nodes if 'as' in id]
+    DEBUG = 2
     if DEBUG>1:
         print('Periodic check: '+'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
     event_buffer.put(Event(ts+interval, 'as_periodic_log', 'sys-admin', {'node_ids': node_ids, 'interval': interval}))

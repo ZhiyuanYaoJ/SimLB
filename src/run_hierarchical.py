@@ -1,4 +1,3 @@
-from distutils.command.config import dump_file
 from common.simulator_hierarchical import *
 from config.exp_hierarchical import *
 
@@ -43,7 +42,6 @@ def init_global_variables(args):
     # update log folder
     global LOG_FOLDER 
     LOG_FOLDER= args.log_folder
-
 
     # print out basic info
     print("unit traffic rate for current setup: {}".format(UNIT_TRAFFIC_RATE))

@@ -150,8 +150,8 @@ methods = [
 
 # grid search dimensions
 n_lbps = [1]
-n_lbss = [4]
-n_ass = [16]
+n_lbss = [2]
+n_ass = [4]
 n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
 fct_mus = [0.5] # change this to compare different input traffic distribution
@@ -160,7 +160,7 @@ n_episode = 1
 fct_io = 0.25
 setup_fmt = '{}lbp-{}lbs-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(50e4)
+n_flow_total = int(5e3)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change load banlancer period

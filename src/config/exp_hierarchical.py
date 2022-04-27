@@ -40,7 +40,7 @@ def generate_node_config_hierarchical(
     log_folder=LOG_FOLDER,
     rl_test=False,
     debug=DEBUG):
-    
+
     clt_ids = list(range(n_clt))
     er_ids = list(range(n_er))
     lbp_ids = list(range(n_lbp))
@@ -218,7 +218,8 @@ CP_EVENTS2ADD = [
         'as_periodic_log',
         'sys-admin',
         {
-            'node_ids': ['as{}'.format(i) for i in range(N_AS)],
+            #'node_ids': ['as{}'.format(i) for i in range(N_AS)],
+            'node_ids': None,
             'interval': 0.5,
         }
     ),

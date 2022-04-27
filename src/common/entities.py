@@ -1209,7 +1209,7 @@ class NodeClient(Node):
         '''
 
         if len(self.flows) == 0: 
-            if DEBUG > 1: print("no flow registered")
+            print("no flow registered")
             return
 
         if self.debug > 0:
@@ -1260,11 +1260,9 @@ class NodeClient(Node):
                 res[k] = v.tolist()
         self.summary.append(res)
         
-        
-        print('fairness-avg : {}'.format(res['fairness-avg']))
-        print('over-avg : {}'.format(res['over-avg']))
-        print('fct-avg : {}'.format(res['fct-avg']))
-                
+        #print('fairness-avg : {}'.format(res['fairness-avg']))
+        #print('over-avg : {}'.format(res['over-avg']))
+        #print('fct-avg : {}'.format(res['fct-avg']))
             
         return res
         

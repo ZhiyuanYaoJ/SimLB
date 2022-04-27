@@ -2,12 +2,12 @@
 import random
 import time
 import numpy as np
-from config.global_conf import ACTION_DIM, RENDER, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD, DEBUG
+from config.global_conf import ACTION_DIM, RENDER, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD, HIDDEN_DIM, DEBUG
 from common.entities import NodeLB
 from policies.model.sac_v2 import *
 
 #--- MACROS ---#
-SAC_training_confs = {'hidden_dim': 512,
+SAC_training_confs = {'hidden_dim': HIDDEN_DIM,
                       'action_range': 1.,
                       'batch_size': 64,
                       'update_itr': 10,

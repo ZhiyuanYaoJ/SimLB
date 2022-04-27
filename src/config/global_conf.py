@@ -50,6 +50,7 @@ METHOD = 'heuristic'
 
 # the feature to be used to calculate reward | previously as `reward_feature`
 REWARD_FEATURE = 'res_fct_avg_disc'
+HIDDEN_DIM = 512
 
 # including 
 #   0: 1-overprovision; 
