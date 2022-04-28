@@ -34,7 +34,8 @@ N_WORKER2CHANGE = 0.5
 N_WORKER_MULTIPLIER = 2
 N_WORKER_MULTIPLIER_DISTRIBUTION = [0.2, 0.4, 0.3, 0.1, 0]
 
-AS_MAX_CLIENT = 64
+#AS_MAX_CLIENT = 64
+AS_MAX_CLIENT = 640
 
 T_TIMEOUT = 40 # rejected flows will be returned to client after 40 seconds
 
@@ -50,7 +51,7 @@ METHOD = 'heuristic'
 
 # the feature to be used to calculate reward | previously as `reward_feature`
 REWARD_FEATURE = 'res_fct_avg_disc'
-HIDDEN_DIM = 512
+HIDDEN_DIM = 12
 
 # including 
 #   0: 1-overprovision; 
@@ -70,7 +71,7 @@ LB_BUCKET_SIZE = 65536
 # ------------------------------------ Clustering----------------------------- #
 
 HIERARCHICAL = False
-CLUSTERING_PERIOD = 0.1
+CLUSTERING_PERIOD = 2
 CLUSTERING_METHOD = 'kmeans'
 
 # ---------------------------------- Client ---------------------------------- #

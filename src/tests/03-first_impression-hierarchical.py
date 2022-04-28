@@ -149,7 +149,7 @@ n_episode = 3
 fct_io = 0.25
 setup_fmt = '{}lbp-{}lbs-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(5e2)
+n_flow_total = int(5e3)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change load banlancer period

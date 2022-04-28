@@ -175,6 +175,9 @@ class NodeRLBSAC(NodeLB):
                             'lb_step', {'node_id': self.id})
         if RENDER:
             self.render(ts, state)
+        if self.layer==1:
+            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
+                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
 
         if self.debug > 1:
             print(">> ({:.3f}s) in {}: new weights {}".format(

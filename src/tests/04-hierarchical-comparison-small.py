@@ -9,7 +9,7 @@ n_thread_max = 48
 counter = None
 # query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
 #     1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[6::4]
-query_rate_list = [0.8]
+query_rate_list = [0.8, 1.0]
 
 def init(args):
     ''' store the counter for later use '''
@@ -70,7 +70,7 @@ def add_rates(tasks, rates):
     return final_task
 
 
-seed = 46
+seed = 48
 
 methods1 = [
     #=== rule ===#
@@ -141,9 +141,11 @@ methods = [
     ["rlb-sac", 'rlb-sac', False],
     ["rlb-sac", 'lsq', False],
     ["rlb-sac", 'ecmp', False],
+    ["wcmp", 'wcmp', True],
     ["wcmp", 'lsq', True], #Spotlight+LSQ
     ["wcmp", 'ecmp', True], #Spotlight
     ["ecmp", 'ecmp', False], #Spotlight
+
     
     
 ]
@@ -151,7 +153,7 @@ methods = [
 # grid search dimensions
 n_lbps = [1]
 n_lbss = [2]
-n_ass = [4]
+n_ass = [6]
 n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
 fct_mus = [0.5] # change this to compare different input traffic distribution
@@ -160,7 +162,7 @@ n_episode = 1
 fct_io = 0.25
 setup_fmt = '{}lbp-{}lbs-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(5e3)
+n_flow_total = int(5e4)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change load banlancer period
@@ -196,8 +198,9 @@ if __name__ == "__main__":  # confirms that the code is under main function
                             log_folder = '/'.join([data_dir, setup, method1 + method2])
                             tasks.append([cmd, log_folder])
                             Path(log_folder).mkdir(parents=True, exist_ok=True)
-                            print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
+    for task in final_tasks:
+        print('tasks : {}\n'.format(task))
 
     total_task = len(final_tasks)
     # for t in final_tasks:

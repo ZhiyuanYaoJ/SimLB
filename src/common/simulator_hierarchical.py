@@ -56,15 +56,14 @@ class Simulator:
         del self.nodes
         self.nodes = {}
         self.init_nodes()
-
-        if self.auto_clustering: 
+        if self.auto_clustering == 'True': 
             self.clustering_agent = ClusteringAgent(self.nodes, self.node_config, method = CLUSTERING_METHOD, debug=0)
         
 
 
     def log_episode(self, episode_id):
         res = {}
-
+        
         
         if self.dump_all_flow:
             flow_all = []

@@ -1123,10 +1123,11 @@ class NodeLB(NodeStatelessLB):
         print('{:<30s}'.format('Total untracked flows:')+str(self.n_untracked_flow))
         
         if nodes:
-            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
-                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
-            print('{:<30s}'.format('Number of Workers:')+' |'.join(
-                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].n_worker) for i in self.child_ids]))
+            if self.layer==1:
+                print('{:<30s}'.format('Actual On Flow:')+' |'.join(
+                    [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
+                print('{:<30s}'.format('Number of Workers:')+' |'.join(
+                    [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].n_worker) for i in self.child_ids]))
 
         # if self.debug > 1:
             # print(obs)
@@ -1139,6 +1140,9 @@ class NodeLB(NodeStatelessLB):
         if RENDER: self.render(ts, nodes)
         t_delay = self.get_process_delay()
         # self.register_event(ts + t_delay, 'lb_update_bucket', {'node_id': self.id})
+        if self.layer==1:
+            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
+                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
         self.register_event(ts + t_delay + self.lb_period, 'lb_step', {'node_id': self.id})
 
     def summarize(self):
@@ -1421,10 +1425,20 @@ class ClusteringAgent(object):
         for a in array:
             if a[1]==a[2]:
                 continue
+            n_worker = nodes['as{}'.format(a[0])].n_worker
+            
+            for lbp in self.lbp_config:
+                lbp_id = 'lb{}'.format(lbp)
+                if a[1] in nodes[lbp_id].child_ids:
+                    nodes[lbp_id].weights[a[1]]-=n_worker
+                if a[2] in nodes[lbp_id].child_ids:
+                    nodes[lbp_id].weights[a[2]]+=n_worker
+                nodes[lbp_id].generate_bucket_table()
+        
             change[a[2]][0].append(a[0])
             change[a[1]][1].append(a[0])
             change[a[2]][2].append(nodes['lb{}'.format(a[1])].weights[a[0]])
-        
+
         for lb in change:
             if len(change[lb][0]) + len(change[lb][1]) == 0: continue
             ts+=1e-6
@@ -1435,6 +1449,8 @@ class ClusteringAgent(object):
         for i in self.lbss:
             for j in nodes['lb{}'.format(i)].child_ids:
                 print('in cluster {}, weights = {}, n_worker = {}'.format('lb{}'.format(i), nodes['lb{}'.format(i)].weights[j], nodes['as{}'.format(j)].n_worker))
+            print('in cluster {}, weights = {}'.format('lb0', nodes['lb0'].weights[i]))
+        print('in cluster {}, weights = {}'.format('lb{}'.format(0), nodes['lb{}'.format(0)].weights))
     
 # a global queue that stores all events
 event_buffer = PriorityQueue()

@@ -64,8 +64,15 @@ def generate_node_config_tier4(
     as_config = {i: as_template.copy() for i in as_ids}
     lb_config = {i: lb_template.copy() for i in lb_ids}
 
-    for i in range(n_worker2change):  # update half as configuration
-        as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
+    #for i in range(n_worker2change):  # update half as configuration
+        #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
+        
+    as_config[0].update({'n_worker': 1})     
+    as_config[1].update({'n_worker': 2})     
+    as_config[2].update({'n_worker': 2})     
+    as_config[3].update({'n_worker': 1})     
+    as_config[4].update({'n_worker': 1})     
+    as_config[5].update({'n_worker': 1})  
 
     if 'config' in METHODS[lb_method].keys():
         if 'weights' in METHODS[lb_method]['config'].keys() and METHODS[lb_method]['config']['weights'] == {}:
@@ -158,7 +165,8 @@ CP_EVENTS2ADD = [
         'as_periodic_log',
         'sys-admin',
         {
-            'node_ids': ['as{}'.format(i) for i in range(64)],
+            #'node_ids': ['as{}'.format(i) for i in range(64)],
+            'node_ids': None,
             'interval': 0.5,
         }
     ),
