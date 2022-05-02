@@ -22,7 +22,23 @@ from config.global_conf import *
 from common.utils import *
 
 Event = namedtuple('Event', 'time name added_by kwargs')
-
+t0=0
+i = 0
+from functools import wraps
+def timeit(func):
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
+        global t0, i
+        t0 += total_time
+        i += 1
+        print(t0)
+        return result
+    return timeit_wrapper
 class Flow:
     '''
     @brief:
@@ -376,6 +392,69 @@ class ReservoirSamplingBuffer(object):
               ' |'.join(["{: > 7.3f}".format(t_) for t_ in self.tss]))
         return '\n'.join(res)
 
+class OtherSamplingBuffer(object):
+    '''
+    @brief:
+        A simple implementation of reservoir sampling buffer which consists of a list of (ts, value)
+    '''
+    def __init__(self, size, dict=None, p=1., fresh_base=0.9):
+        self.fresh_base = fresh_base
+        self.size = size
+        self.tss = np.zeros(self.size) # timestamps
+        self.values = np.zeros(self.size)  # values
+
+    def __get_freshness(self, ts):
+        '''
+        @brief:
+            calculate datapoint freshness based on timestamps
+        @params:
+            ts: current timestamp to compare freshness
+        '''
+        assert ts > max(self.tss), "ts {:.3f}s".format(ts) + str(self.tss)
+        delta_t = [ts - t if t != 0 else 0 for t in self.tss]
+        return np.power(self.fresh_base, delta_t)
+
+    def sample(self, ts, dict, child_id = None):
+
+        method = 1
+        k = min(self.size, len(dict))
+        if method == 1:
+            set = [v[0] for _,v in dict.items() if v[2] == child_id]
+            if len(set)==0: return
+            self.tss = np.random.choice(set, size=k)
+            self.values = ts - self.tss
+        
+        if method == 2:
+            set = [v[0] for _,v in dict.items() if v[2] == child_id]
+            if len(set)==0: return
+            set = sorted(set)[:k]
+            self.values = [ts-tss_ for tss_ in self.tss]
+            
+ 
+
+    def get_value_variance(self):
+        return self.values.std()**2
+
+    def summary(self, ts):
+        res = {}
+        assert ts >= max(self.tss), "ts={:.3f}s, max(tss)={:.3f}s".format(ts, max(self.tss))
+        res['avg'] = self.values.mean()
+        res['std'] = self.values.std()
+        res['p90'] = np.percentile(self.values, 90)
+        freshness = self.__get_freshness(ts)
+        values_discounted = np.multiply(self.values, freshness)
+        res['avg_disc'] = values_discounted.sum() / freshness.sum()
+        res['avg_decay'] = values_discounted.mean()
+        return res
+
+    def get_info(self):
+        res = ["Buffer size: {}".format(self.size)]
+        res.append('{:<8s}'.format('Times:') +
+              ' |'.join(["{: > 7.3f}".format(t_) for t_ in self.tss]))
+        res.append('{:<8s}'.format('Values:') +
+              ' |'.join(["{: > 7.3f}".format(t_) for t_ in self.tss]))
+        return '\n'.join(res)
+
 class Node(object):
     '''
     @brief:
@@ -392,7 +471,7 @@ class Node(object):
         return random.uniform(1e-6, 1e-5)
 
     def get_t2neighbour(self):
-        if hasattr(self, 'layer') and self.layer > 1:
+        if hasattr(self, 'layer') and self.layer == 2:
             return 0
         return random.uniform(1e-4, 1e-3)
 
@@ -901,6 +980,10 @@ class NodeLB(NodeStatelessLB):
         }
         self._reservoir.update({k: ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for k in RESERVOIR_LB_KEYS})
         self._res_max_ts = 0.
+        self._other = {
+             k: [OtherSamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)] for k in RESERVOIR_AS_KEYS
+        }
+        self._other.update({k: OtherSamplingBuffer(RESERVOIR_BUFFER_SIZE) for k in RESERVOIR_LB_KEYS})
 
         if self.debug > 1:
             print("in NodeLB kickoff node {}".format(self.id))
@@ -911,6 +994,18 @@ class NodeLB(NodeStatelessLB):
         @brief:
             update flow duration reservoir buffer
         '''
+        
+        for child_id in self.child_ids:
+            if child_id == 5:
+                self._other['fd'][child_id].sample(ts, self._tracked_flows, child_id)
+                print('sampler')
+                print(self._other['fd'][child_id].summary(ts))
+                print('reservoir')
+                print(self._reservoir['fd'][child_id].summary(ts))
+                
+                #print(self._reservoir['fd'][child_id].values)
+        
+        
         assert self._res_max_ts <= ts, "current ts {:.7f}s, res_max_ts {:.7f}s".format(
             ts, self._res_max_ts)
         # make ts lower bound larger than all samples in reservoir buffer
@@ -959,16 +1054,22 @@ class NodeLB(NodeStatelessLB):
 
         # initialization
         res = self._counters
-        for k, v in self._reservoir.items():
+        #for k, v in self._reservoir.items():
+        for k, v in self._other.items():
+        
             # for server reservoir buffers
             if isinstance(v, list):
                 summaries = []
                 for i in range(self.max_n_child):
-                    summaries.append(v[i].summary(ts))
+                    if i in self.child_ids:
+                        v[i].sample(ts,self._tracked_flows, child_id = i)
+                        summaries.append(v[i].summary(ts))
+                    else: summaries.append({'avg': 0.0, 'std': 0.0, 'p90': 0.0, 'avg_disc': 0.0, 'avg_decay': 0.0})
                 for kk in REDUCE_METHODS:
                     res.update({'res_{}_{}'.format(k, kk): np.array([
                             summaries[i][kk] for i in range(self.max_n_child)])})
             else:
+                v.sample(ts, self._tracked_flows)
                 summaries = v.summary(ts)
                 for kk in REDUCE_METHODS:
                     res.update({'res_{}_{}'.format(k, kk): summaries[kk]})
@@ -1025,7 +1126,7 @@ class NodeLB(NodeStatelessLB):
         if RENDER_RECEIVE: self.render_receive(ts, flow, child_id, nodes)
 
         # we hook reservoir sampling process with receive, whenever a new flow is received, we update the flow duration in reservoir sampling
-        self.__update_res_fd(ts)
+        #self.__update_res_fd(ts)
 
         if self._bucket_table_avail[bucket_id]: # bucket is available, register flow
             self._tracked_flows[flow.id] = (ts, bucket_id, child_id) # register t_receive and chosen AS id]
@@ -1046,7 +1147,7 @@ class NodeLB(NodeStatelessLB):
 
         if (self.child_prefix == 'as'):
             nodes['{}{}'.format(self.child_prefix, child_id)].update_pending_fct(flow)
-        
+
     def expire_flow(self, ts, flow_id):
         '''
         @brief:
@@ -1083,7 +1184,7 @@ class NodeLB(NodeStatelessLB):
 
         self.generate_bucket_table() # update bucket table
 
-        
+
     def switch_child(self, child_id_add, child_id_remove, weights):
         
         if not weights:

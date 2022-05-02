@@ -2,7 +2,7 @@ from common.entities import NodeAS, NodeClient, NodeStatelessLB, NodeLB
 from policies.rule import NodeLBLSQ, NodeLBSED, NodeLBSRT, NodeLBGSQ, NodeLBActive
 from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada, NodeLBGeometry, NodeLBHermes, NodeLBRS, NodeLBProbFlow
 from policies.rl_sac import NodeRLBSAC
-from config.global_conf import KF_CONF
+from config.global_conf import KF_CONF, HIDDEN_DIM
 
 # ---------------------------------------------------------------------------- #
 #                             Register All Policies                            #
@@ -153,6 +153,18 @@ METHODS = {
     },
     "rlb-sac": { # SAC model
         "class": NodeRLBSAC,
+        "config": {
+            'SAC_training_confs_': {
+                'hidden_dim': 50,
+                'action_range': 1.,
+                'batch_size': 64,
+                'update_itr': 10,
+                'reward_scale': 10.,
+                'save_interval': 100,  # time interval for saving models, in seconds
+                'AUTO_ENTROPY': True,
+                'model_path': 'sac_v2',
+            }
+        }
     }
 }
 

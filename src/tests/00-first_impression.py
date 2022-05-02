@@ -101,12 +101,12 @@ methods = [
     #"geom-sed", # geometry-based algorithm
     #"geom-sed-w", # geometry-based algorithm
     # === reinforcement learning ===#
-    #"rlb-sac", # SAC model
+    "rlb-sac", # SAC model
 ]
 
 # grid search dimensions
 n_lb = [1]
-n_ass = [4]
+n_ass = [2]
 n_worker = 1
 n_worker_multipliers = [2] # change this to compare server capacity variance
 fct_mus = [0.5] # change this to compare different input traffic distribution
@@ -115,7 +115,7 @@ n_episode = 1
 fct_io = 0.25
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(1e4)
+n_flow_total = int(5e4)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change bucket size

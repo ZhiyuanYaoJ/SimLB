@@ -6,6 +6,7 @@
 
 from config.global_conf import *
 from config.node_register import METHODS, NODE_MAP
+import config.user_conf
 
 # ---------------------------------------------------------------------------- #
 #                                      Log                                     #
@@ -30,6 +31,7 @@ def generate_node_config_tier4(
     lb_bucket_size=LB_BUCKET_SIZE,
     log_folder=LOG_FOLDER,
     rl_test=False,
+    user_conf=-1,
     debug=DEBUG):
     clt_ids = list(range(n_clt))
     er_ids = list(range(n_er))
@@ -84,6 +86,13 @@ def generate_node_config_tier4(
         for i in lb_config.keys():
             lb_config[i].update({'logger_dir': log_folder+'/rl.log',
                                  'rl_test': rl_test})
+
+    if user_conf >= 0:
+        configuration = config.user_conf.user_conf[user_conf]
+        if lb_method in configuration['METHODS'].keys() and 'config' in METHODS[lb_method].keys():
+            print(configuration['METHODS'][lb_method]['config'])
+            for i in lb_config.keys():
+                lb_config[i].update(configuration['METHODS'][lb_method]['config'])
     
     return {
         'clt': clt_config,

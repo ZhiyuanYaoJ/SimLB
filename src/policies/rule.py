@@ -2,6 +2,7 @@ from ast import Raise
 import random
 import time
 from config.global_conf import ACTION_DIM, RENDER, LB_PERIOD, B_OFFSET, RENDER_RECEIVE, HEURISTIC_ALPHA
+from config.user_conf import *
 from common.entities import NodeLB
 import numpy as np
 

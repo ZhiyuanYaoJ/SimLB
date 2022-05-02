@@ -51,7 +51,7 @@ METHOD = 'heuristic'
 
 # the feature to be used to calculate reward | previously as `reward_feature`
 REWARD_FEATURE = 'res_fct_avg_disc'
-HIDDEN_DIM = 12
+HIDDEN_DIM = 512
 
 # including 
 #   0: 1-overprovision; 
@@ -327,8 +327,11 @@ parser.add_argument('-m1', action='store', default='ecmp', dest='method1',
 parser.add_argument('-m2', action='store', default='ecmp', dest='method2',
                     help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
 
-parser.add_argument('--auto-clustering', action='store', default=False, dest='auto_clustering',
+parser.add_argument('--auto-clustering', action='store', type=bool, default=False, dest='auto_clustering',
                     help='Wether ass should be regrouped among equal size')
+
+parser.add_argument('--user-conf', action='store', type=int, default=-1, dest='user_conf',
+                    help='Specific user configuration')
 
 parser.add_argument('--dump-all', action='store_true', default=False, dest='dump_all_flow',
                     help='Whether dump all the flows in a file')

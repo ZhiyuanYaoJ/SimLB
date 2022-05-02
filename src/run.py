@@ -25,6 +25,7 @@ def init_global_variables(args):
         as_mp_level=args.as_mp_level,
         log_folder=args.log_folder,
         rl_test=args.rl_test,
+        user_conf=args.user_conf,
         debug=DEBUG)
 
 

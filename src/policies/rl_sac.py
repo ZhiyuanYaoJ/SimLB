@@ -5,6 +5,30 @@ import numpy as np
 from config.global_conf import ACTION_DIM, RENDER, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD, HIDDEN_DIM, DEBUG
 from common.entities import NodeLB
 from policies.model.sac_v2 import *
+from config.user_conf import *
+
+
+from functools import wraps
+i=0
+t0=0
+sum=0
+def timeit(func):
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
+        global t0, i
+        if total_time>0.001:
+            t0 += total_time
+            i +=1
+            print('Result {}'.format(t0))
+        #if i%10 == 0:
+            #print(t0)
+        return result
+    return timeit_wrapper
 
 #--- MACROS ---#
 SAC_training_confs = {'hidden_dim': HIDDEN_DIM,
@@ -40,6 +64,7 @@ class NodeRLBSAC(NodeLB):
             logger_dir="log/rl.log",
             rl_test=False,
             layer=1,
+            SAC_training_confs_=SAC_training_confs,
             debug=0
             ):
         super().__init__(id, child_ids, bucket_size, weights, 
@@ -53,6 +78,8 @@ class NodeRLBSAC(NodeLB):
         self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
         self.last_state = None
         self.last_action = None
+        global SAC_training_confs
+        SAC_training_confs = SAC_training_confs_
         self.sac_trainer = SAC_Trainer(self.replay_buffer, n_feature_as=N_FEATURE_AS, n_feature_lb=N_FEATURE_LB,
                                        hidden_dim=SAC_training_confs['hidden_dim'], action_range=SAC_training_confs['action_range'],
                                        action_dim=ACTION_DIM, logger=self.logger)
@@ -111,7 +138,7 @@ class NodeRLBSAC(NodeLB):
         t_rest_all = None    
         
         return (self.child_ids, feature_lb, feature_as, t_rest_all) # gt set to rest time
-
+   
     def generate_weight(self, state):
         '''
         @brief:
@@ -175,14 +202,14 @@ class NodeRLBSAC(NodeLB):
                             'lb_step', {'node_id': self.id})
         if RENDER:
             self.render(ts, state)
-        if self.layer==1:
-            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
-                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
+        #if self.layer==1:
+            #print('{:<30s}'.format('Actual On Flow:')+' |'.join(
+                #[' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
 
         if self.debug > 1:
             print(">> ({:.3f}s) in {}: new weights {}".format(
                 ts, self.__class__, self.weights[self.child_ids]))
-
+    @timeit
     def train(self):
         '''
         @brief:

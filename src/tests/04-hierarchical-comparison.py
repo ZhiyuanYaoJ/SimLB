@@ -72,73 +72,9 @@ def add_rates(tasks, rates):
 
 seed = 46
 
-methods1 = [
-    #=== rule ===#
-    #"ecmp", # Equal-Cost Multi-Path (ECMP)
-    #"wcmp", # Weighted-Cost Multi-Path (WCMP)
-    #"lsq", # Local shortest queue (LSQ)
-    # "lsq2", # LSQ + power-of-2-choices
-    #"sed", # Shortest Expected Delay
-    # "sed2", # LSQ + power-of-2-choices
-    #"srt", # Shortest Remaining Time (SRT) (Layer-7)
-    # "srt2", # SRT + power-of-2-choices
-    #"gsq", # Global shortest queue (GSQ) (Layer-7)
-    #"gsq2", # GSQ + power-of-2-choices·
-    # "active-wcmp", # Spotlight, adjust weights based on periodic polling
-    #=== heuristic ===#
-    # "aquarius", # Aquarius, 
-    # "hlb", # Hybrid LB (HLB), Aquarius replacing alpha by Kalman filter
-    # "hlb2", # HLB + power-of-2-choices
-    # "hlb-ada", # HLB + adaptive sensor error
-    # "hermes", #hermes
-    # "rs", # reservoir sampling #flow
-    # "rs2", # reservoir sampling #flow + power-of-2
-    # "geom", # geometry-based algorithm
-    #"geom-w", # geometry-based algorithm
-    # "prob-flow", # geometry-based algorithm
-    #"prob-flow-w", # geometry-based algorithm
-    # "prob-flow2", # geometry-based algorithm
-    #"prob-flow-w2", # geometry-based algorithm
-    #"geom-sed", # geometry-based algorithm
-    #"geom-sed-w", # geometry-based algorithm
-    # === reinforcement learning ===#
-    #"rlb-sac", # SAC model
-]
-methods2 = [
-    #=== rule ===#
-    #"ecmp", # Equal-Cost Multi-Path (ECMP)
-    #"wcmp", # Weighted-Cost Multi-Path (WCMP)
-    #"lsq", # Local shortest queue (LSQ)
-    # "lsq2", # LSQ + power-of-2-choices
-    #"sed", # Shortest Expected Delay
-    # "sed2", # LSQ + power-of-2-choices
-    #"srt", # Shortest Remaining Time (SRT) (Layer-7)
-    # "srt2", # SRT + power-of-2-choices
-    #"gsq", # Global shortest queue (GSQ) (Layer-7)
-    #"gsq2", # GSQ + power-of-2-choices·
-    # "active-wcmp", # Spotlight, adjust weights based on periodic polling
-    #=== heuristic ===#
-    # "aquarius", # Aquarius, 
-    # "hlb", # Hybrid LB (HLB), Aquarius replacing alpha by Kalman filter
-    # "hlb2", # HLB + power-of-2-choices
-    # "hlb-ada", # HLB + adaptive sensor error
-    # "hermes", #hermes
-    # "rs", # reservoir sampling #flow
-    # "rs2", # reservoir sampling #flow + power-of-2
-    # "geom", # geometry-based algorithm
-    #"geom-w", # geometry-based algorithm
-    # "prob-flow", # geometry-based algorithm
-    #"prob-flow-w", # geometry-based algorithm
-    # "prob-flow2", # geometry-based algorithm
-    #"prob-flow-w2", # geometry-based algorithm
-    #"geom-sed", # geometry-based algorithm
-    #"geom-sed-w", # geometry-based algorithm
-    # === reinforcement learning ===#
-    #"rlb-sac", # SAC model
-]
 methods = [
     # [method 1, method2, auto_clustering]
-    ["rlb-sac", 'rlb-sac', False],
+    #["rlb-sac", 'rlb-sac', False],
     ["rlb-sac", 'lsq', False],
     ["rlb-sac", 'ecmp', False],
     ["wcmp", 'lsq', True], #Spotlight+LSQ
@@ -158,7 +94,7 @@ n_episode = 1
 fct_io = 0.25
 setup_fmt = '{}lbp-{}lbs-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(10e4)
+n_flow_total = int(2e4)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change load banlancer period
@@ -191,6 +127,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
                             cmd = cmd_preamable + ' -m1 {}'.format(method1)
                             cmd = cmd + ' -m2 {}'.format(method2)
                             cmd = cmd + ' --auto-clustering {}'.format(auto_clustering)
+                            #cmd = cmd + ' --user-conf {}'.format(user_conf)
                             log_folder = '/'.join([data_dir, setup, method1 + method2])
                             tasks.append([cmd, log_folder])
                             Path(log_folder).mkdir(parents=True, exist_ok=True)
