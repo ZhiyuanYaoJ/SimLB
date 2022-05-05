@@ -21,6 +21,7 @@ from numpy import savez_compressed
 from config.global_conf import *
 from common.utils import *
 
+tab = [0,0]
 Event = namedtuple('Event', 'time name added_by kwargs')
 t0=0
 i = 0
@@ -402,6 +403,9 @@ class OtherSamplingBuffer(object):
         self.size = size
         self.tss = np.zeros(self.size) # timestamps
         self.values = np.zeros(self.size)  # values
+        self.table_mask = size-1
+        self.p = p
+        self.fresh_base = fresh_base
 
     def __get_freshness(self, ts):
         '''
@@ -413,6 +417,13 @@ class OtherSamplingBuffer(object):
         assert ts > max(self.tss), "ts {:.3f}s".format(ts) + str(self.tss)
         delta_t = [ts - t if t != 0 else 0 for t in self.tss]
         return np.power(self.fresh_base, delta_t)
+    
+    def put(self, ts, value):
+        if random.random() > self.p: return
+        assert ts > max(self.tss)
+        index = random.randint(0, self.table_mask) # get index to store
+        self.tss[index] = ts-1e-9 
+        self.values[index] = value   
 
     def sample(self, ts, dict, child_id = None):
 
@@ -1048,6 +1059,7 @@ class NodeLB(NodeStatelessLB):
         '''
         feature_all = self.get_observation(ts)
         feature_reward = feature_all[reward_field][self.child_ids]
+        print('Reward = {}'.format(self.reward_fn(feature_reward)))
         return self.reward_fn(feature_reward)
 
     def get_observation(self, ts):
@@ -1062,14 +1074,16 @@ class NodeLB(NodeStatelessLB):
                 summaries = []
                 for i in range(self.max_n_child):
                     if i in self.child_ids:
-                        v[i].sample(ts,self._tracked_flows, child_id = i)
+                        if k=='fd':
+                            v[i].sample(ts,self._tracked_flows, child_id = i)
                         summaries.append(v[i].summary(ts))
                     else: summaries.append({'avg': 0.0, 'std': 0.0, 'p90': 0.0, 'avg_disc': 0.0, 'avg_decay': 0.0})
                 for kk in REDUCE_METHODS:
                     res.update({'res_{}_{}'.format(k, kk): np.array([
                             summaries[i][kk] for i in range(self.max_n_child)])})
             else:
-                v.sample(ts, self._tracked_flows)
+                if k=='fd':
+                    v.sample(ts, self._tracked_flows)
                 summaries = v.summary(ts)
                 for kk in REDUCE_METHODS:
                     res.update({'res_{}_{}'.format(k, kk): summaries[kk]})
@@ -1166,7 +1180,8 @@ class NodeLB(NodeStatelessLB):
         self._counters['n_flow_on'][child_id] -= 1
         fct = ts - t_begin
         assert fct > 0
-        self._reservoir['fct'][child_id].put(ts, fct)
+        #self._reservoir['fct'][child_id].put(ts, fct)
+        self._other['fct'][child_id].put(ts, fct)
 
     def add_child(self, child_id, weights):
         if not isinstance(child_id, list): child_id = [child_id] # convert single as id to a list
@@ -1244,6 +1259,7 @@ class NodeLB(NodeStatelessLB):
         if self.layer==1:
             print('{:<30s}'.format('Actual On Flow:')+' |'.join(
                 [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
+        self.calcul_reward(ts)    
         self.register_event(ts + t_delay + self.lb_period, 'lb_step', {'node_id': self.id})
 
     def summarize(self):

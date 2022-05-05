@@ -10,6 +10,7 @@
 DEBUG = 0
 from config.global_conf import *
 from common.entities import Event, NodeAS, event_buffer
+from datetime import datetime
 
 def dp_receive(nodes, ts, flow):
     nexthop = flow.nexthop.split('-')[0]
@@ -40,7 +41,9 @@ def as_periodic_log(nodes, ts, node_ids, interval):
         node_ids = [id for id in nodes if 'as' in id]
     DEBUG = 2
     if DEBUG>1:
-        print('Periodic check: '+'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
+        print('Periodic check: {} '.format(str(datetime.now())) +'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
+        #print('Get observation: {}'.format(nodes['lb0'].get_observation(ts)))
+        nodes['lb0'].get_observation(ts)
     event_buffer.put(Event(ts+interval, 'as_periodic_log', 'sys-admin', {'node_ids': node_ids, 'interval': interval}))
 
 def lb_update_bucket(nodes, ts, node_id):

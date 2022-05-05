@@ -115,7 +115,7 @@ n_episode = 1
 fct_io = 0.25
 setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
 first_episode_id = 0
-n_flow_total = int(2e4)
+n_flow_total = int(1e4)
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change bucket size

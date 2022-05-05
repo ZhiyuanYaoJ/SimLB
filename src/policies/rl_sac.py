@@ -2,16 +2,16 @@
 import random
 import time
 import numpy as np
-from config.global_conf import ACTION_DIM, RENDER, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD, HIDDEN_DIM, DEBUG
+from config.global_conf import ACTION_DIM, RENDER, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD, HIDDEN_DIM, REWARD_OPTION, DEBUG
 from common.entities import NodeLB
 from policies.model.sac_v2 import *
-from config.user_conf import *
 
 
 from functools import wraps
 i=0
 t0=0
 sum=0
+tab = [0,0,0,0,0,0]
 def timeit(func):
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
@@ -24,7 +24,7 @@ def timeit(func):
         if total_time>0.001:
             t0 += total_time
             i +=1
-            print('Result {}'.format(t0))
+            print('Result {}'.format(total_time))
         #if i%10 == 0:
             #print(t0)
         return result
@@ -57,8 +57,8 @@ class NodeRLBSAC(NodeLB):
             weights=None, # initial weights
             max_n_child=ACTION_DIM, # action space size [ACTION_DIM, ]
             T0=time.time(),
-            reward_option=2,
-            ecmp=False, 
+            reward_option=REWARD_OPTION,
+            ecmp=False,
             child_prefix='as',
             b_offset=B_OFFSET,
             logger_dir="log/rl.log",
@@ -93,12 +93,12 @@ class NodeRLBSAC(NodeLB):
             model_path = SAC_training_confs['model_path']
             self.sac_trainer.load_model(model_path)
 
-
     def choose_as(self):
         as_id = random.choices(
             self.active_as, [self.weights[as_id_] for as_id_ in self.active_as])
         return as_id[0]
-
+    
+    
     def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
@@ -121,6 +121,8 @@ class NodeRLBSAC(NodeLB):
             n_flow_map = zip(self.child_ids, score)
             print("n_flow_on chosen minimum {} from {}".format(
                 child_id, '|'.join(['{}: {}'.format(k, v) for k, v in n_flow_map])))
+            
+            
         return child_id, bucket_id
 
 
@@ -202,14 +204,14 @@ class NodeRLBSAC(NodeLB):
                             'lb_step', {'node_id': self.id})
         if RENDER:
             self.render(ts, state)
-        #if self.layer==1:
-            #print('{:<30s}'.format('Actual On Flow:')+' |'.join(
-                #[' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
+        if self.layer==1:
+            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
+                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
 
-        if self.debug > 1:
-            print(">> ({:.3f}s) in {}: new weights {}".format(
-                ts, self.__class__, self.weights[self.child_ids]))
-    @timeit
+
+        print(">> ({:.3f}s) in {}: new weights {}".format(
+            ts, self.__class__, self.weights[self.child_ids]))
+
     def train(self):
         '''
         @brief:

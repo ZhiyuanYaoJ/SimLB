@@ -19,9 +19,9 @@ np.random.seed(SEED)
 
 # ------------------------------------ AS ------------------------------------ #
 
-N_AS = 12  # number of application server node(s)
+N_AS = 6  # number of application server node(s)
 
-ACTION_DIM = 600  # maximal amount of application server nodes, as in emulator
+ACTION_DIM = 6  # maximal amount of application server nodes, as in emulator
 
 # baseline number of worker threads for each AS 
 N_WORKER_BASELINE = 2
@@ -51,15 +51,15 @@ METHOD = 'heuristic'
 
 # the feature to be used to calculate reward | previously as `reward_feature`
 REWARD_FEATURE = 'res_fct_avg_disc'
-HIDDEN_DIM = 512
-
+HIDDEN_DIM = 128
+REWARD_OPTION = 2
 # including 
 #   0: 1-overprovision; 
 #   1: negative exponential difference between mean and max; 
 #   2: difference between min and max; 
 #   3: exponential difference between min and max; 
 #   4: jain's fairness index
-REWARD_OPTION = 4
+
 
 # update padding option 
 #   'valid': keep incrementing specific time interval on last weights generation timestamp
@@ -448,6 +448,9 @@ parser.add_argument('--reward-feature', action='store', default=REWARD_FEATURE,
 
 parser.add_argument('--reward-option', type=int, action='store', default=REWARD_OPTION,
                     dest='reward_option', help='Use which way of calcualting reward.')
+
+parser.add_argument('--hidden-dim', type=int, action='store', default=HIDDEN_DIM,
+                    dest='hidden_dim', help='Use which way of calcualting reward.')
 
 parser.add_argument('--lb-bucket-size', type=int, action='store',
                     default=LB_BUCKET_SIZE, dest='lb_bucket_size',

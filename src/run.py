@@ -43,6 +43,10 @@ def init_global_variables(args):
     # update log folder
     global LOG_FOLDER 
     LOG_FOLDER= args.log_folder
+    
+    HIDDEN_DIM=args.hidden_dim
+    REWARD_OPTION=args.reward_option
+    REWARD_FEATURE=args.reward_feature
 
 
     # print out basic info

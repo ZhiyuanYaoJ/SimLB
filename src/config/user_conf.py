@@ -13,7 +13,8 @@ from config.global_conf import *
 DEBUG = 0
 user_conf = {}
 
-user_conf[0] = {
+
+u = {
     'METHODS' : {
         "rlb-sac": {# SAC model
             "config": {
@@ -31,3 +32,7 @@ user_conf[0] = {
         }
     }
 }
+hidden = [5, 10, 50, 100, 200, 400, 1000]
+user_conf = {i:u for i in range (len(hidden))}
+for i in range (len(hidden)):
+    u['METHODS']['rlb-sac']['config']['SAC_training_confs_']['hidden_dim'] = hidden[i]

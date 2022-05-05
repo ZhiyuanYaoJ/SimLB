@@ -24,6 +24,28 @@ DEVICE = torch.device("cpu")
 REPLAY_BUFFER_SIZE = 3000
 DEBUG = 0
 
+from functools import wraps
+i=0
+t0=0
+sum=0
+def timeit(func):
+    @wraps(func)
+    def timeit_wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        total_time = end_time - start_time
+        #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
+        global t0, i
+        if total_time>0.001:
+            t0 += total_time
+            i +=1
+            print('Result {}'.format(t0))
+        #if i%10 == 0:
+            #print(t0)
+        return result
+    return timeit_wrapper
+
 #--- Initialization ---#
 
 
