@@ -12,6 +12,7 @@ i=0
 t0=0
 sum=0
 tab = [0,0,0,0,0,0]
+t_in = time.time()
 def timeit(func):
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
@@ -24,7 +25,7 @@ def timeit(func):
         if total_time>0.001:
             t0 += total_time
             i +=1
-            print('Result {}'.format(total_time))
+            print('Result {}'.format(t0/(time-time()-t_in)))
         #if i%10 == 0:
             #print(t0)
         return result
@@ -36,9 +37,9 @@ SAC_training_confs = {'hidden_dim': HIDDEN_DIM,
                       'batch_size': 64,
                       'update_itr': 10,
                       'reward_scale': 10.,
-                      'save_interval': 100,  # time interval for saving models, in seconds
+                      'save_interval': 30,  # time interval for saving models, in seconds
                       'AUTO_ENTROPY': True,
-                      'model_path': 'sac_v2',
+                      'model_path': 'models2/sac_v2',
                       }
 
 DETERMINISTIC = False
@@ -78,11 +79,12 @@ class NodeRLBSAC(NodeLB):
         self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
         self.last_state = None
         self.last_action = None
+        self.action_dim = max_n_child
         global SAC_training_confs
         SAC_training_confs = SAC_training_confs_
         self.sac_trainer = SAC_Trainer(self.replay_buffer, n_feature_as=N_FEATURE_AS, n_feature_lb=N_FEATURE_LB,
                                        hidden_dim=SAC_training_confs['hidden_dim'], action_range=SAC_training_confs['action_range'],
-                                       action_dim=ACTION_DIM, logger=self.logger)
+                                       action_dim=self.action_dim, logger=self.logger)
         
     def reset(self):
         super().reset()
@@ -195,7 +197,7 @@ class NodeRLBSAC(NodeLB):
 
         # save model if necessary
         if t0 - self.last_save_t > SAC_training_confs['save_interval']:
-            self.sac_trainer.save_model(SAC_training_confs['model_path'])
+            #self.sac_trainer.save_model(SAC_training_confs['model_path'])
             self.last_save_t = t0
 
         ts += step_delay
@@ -224,7 +226,7 @@ class NodeRLBSAC(NodeLB):
                     SAC_training_confs['batch_size'],
                     reward_scale=SAC_training_confs['reward_scale'],
                     auto_entropy=SAC_training_confs['AUTO_ENTROPY'],
-                    target_entropy=-1.*ACTION_DIM,
+                    target_entropy=-1.*self.action_dim,
                 )
 
     def render(self, ts, state):

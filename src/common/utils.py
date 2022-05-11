@@ -34,6 +34,15 @@ def get_fct_exp(mu):
     '''
     return exponential(mu)
 
+def get_fct_same(mu):
+    '''
+    @brief:
+        generate expected flow complete time (FCT) w/ exponential distribution
+    @params:
+        mu: average FCT, mu=stddev for exponential distribution
+    '''
+    return mu
+
 def get_fct_normal(mu, std):
     '''
     @brief:

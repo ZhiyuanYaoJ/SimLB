@@ -80,10 +80,10 @@ def lb_add_server(nodes, ts, lbs, ass, cluster_agent = None, weights=[1], n_work
         nodes['lb{}'.format(lb)].add_child(ass, weights)
         
     #for clustering
-    for lb in lbs:
-        for a in ass:
-            if a not in cluster_agent.lbs_config[lb]['child_ids']:
-                cluster_agent.lbs_config[lb]['child_ids'].append(a)
+    #for lb in lbs:
+    #    for a in ass:
+    #        if a not in cluster_agent.lbs_config[lb]['child_ids']:
+    #            cluster_agent.lbs_config[lb]['child_ids'].append(a)
 
 def lb_remove_server(nodes, ts, lbs, ass, cluster_agent= None):
     
@@ -97,10 +97,10 @@ def lb_remove_server(nodes, ts, lbs, ass, cluster_agent= None):
         event_buffer.put(Event(ts, 'as_try_remove', 'external', {'node_id': as_id}), checkfull=False)
         
     #for clustering
-    for lb in lbs:
-        for a in ass:
-            if a in cluster_agent.lbs_config[lb]['child_ids']:
-                cluster_agent.lbs_config[lb]['child_ids'].remove(a)
+    #for lb in lbs:
+    #    for a in ass:
+    #        if a in cluster_agent.lbs_config[lb]['child_ids']:
+    #            cluster_agent.lbs_config[lb]['child_ids'].remove(a)
     
 
 def lb_change_server(nodes, ts, lbs, nodes_to_add, nodes_to_remove, weights, cluster_agent):

@@ -15,5 +15,5 @@ def calcul_fair(values):
     
 #values = [0,5,100]
 #values = [0,7,100]
-values = [2,5,100]
+values = [1, 3.3]
 print(calcul_fair(values))

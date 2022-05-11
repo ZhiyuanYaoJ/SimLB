@@ -32,7 +32,7 @@ u = {
         }
     }
 }
-hidden = [5, 10, 50, 100, 200, 400, 1000]
-user_conf = {i:u for i in range (len(hidden))}
-for i in range (len(hidden)):
-    u['METHODS']['rlb-sac']['config']['SAC_training_confs_']['hidden_dim'] = hidden[i]
+#hidden = [5, 10, 50, 100, 200, 400, 1000]
+#user_conf = {i:u for i in range (len(hidden))}
+#for i in range (len(hidden)):
+    #u['METHODS']['rlb-sac']['config']['SAC_training_confs_']['hidden_dim'] = hidden[i]

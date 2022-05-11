@@ -165,9 +165,10 @@ class Flow:
 class DistributionFCT(object):
 
     def __init__(self, fct_type, **kwargs):
-        all_types_fct = ["exp", "normal", "uniform", "lognormal"]
+        all_types_fct = ["exp", 'same', "normal", "uniform", "lognormal"]
         fct_type_kwargs = {
             "exp": ["mu"],
+            "same": ["mu"],
             "normal": ["mu", "std"],
             "lognormal": ["mu", "std"],
             "uniform": ["mu", "std"]
@@ -427,6 +428,10 @@ class OtherSamplingBuffer(object):
 
     def sample(self, ts, dict, child_id = None):
 
+        if len(dict) == 0:
+            self.tss = np.zeros(self.size) # timestamps
+            self.values = np.zeros(self.size)  # values
+            return
         method = 1
         k = min(self.size, len(dict))
         if method == 1:
@@ -456,6 +461,13 @@ class OtherSamplingBuffer(object):
         values_discounted = np.multiply(self.values, freshness)
         res['avg_disc'] = values_discounted.sum() / freshness.sum()
         res['avg_decay'] = values_discounted.mean()
+        
+        sorted = np.sort(np.copy(self.tss))
+        steps = np.array([sorted[i+1]-sorted[i] for i in range(len(self.tss)-1)])
+        if len(steps) == 0: 
+            res['avg_step'] = 0
+        else:
+            res['avg_step'] = steps.mean()
         return res
 
     def get_info(self):
@@ -1077,13 +1089,11 @@ class NodeLB(NodeStatelessLB):
                         if k=='fd':
                             v[i].sample(ts,self._tracked_flows, child_id = i)
                         summaries.append(v[i].summary(ts))
-                    else: summaries.append({'avg': 0.0, 'std': 0.0, 'p90': 0.0, 'avg_disc': 0.0, 'avg_decay': 0.0})
+                    else: summaries.append({'avg': 0.0, 'std': 0.0, 'p90': 0.0, 'avg_disc': 0.0, 'avg_decay': 0.0, 'avg_step': 0.0})
                 for kk in REDUCE_METHODS:
                     res.update({'res_{}_{}'.format(k, kk): np.array([
                             summaries[i][kk] for i in range(self.max_n_child)])})
             else:
-                if k=='fd':
-                    v.sample(ts, self._tracked_flows)
                 summaries = v.summary(ts)
                 for kk in REDUCE_METHODS:
                     res.update({'res_{}_{}'.format(k, kk): summaries[kk]})
@@ -1466,23 +1476,23 @@ class ClusteringAgent(object):
         for k in [k for k in node_config if 'lb' in k]:
             lb_config.update(node_config[k])
             
-        self.lbs_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']==1}
-        self.lbp_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']>1}
-        self.lbss = list(self.lbs_config.keys())
-        self.as_config = node_config['as']
-        self.n_as = len(self.as_config)
-        self.n_lbs = len(self.lbs_config)
+        lbs_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']==1}
+        #self.lbp_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']>1}
+        self.lbss = list(lbs_config.keys())
+        #self.as_config = node_config['as']
+        self.n_as = len(node_config['as'])
+        self.n_lbs = len(self.lbss)
 
         self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
         
 
-    def kmeans_algorithm(self, nodes):
+    def kmeans_algorithm(self, nodes, threshold = 0.2):
         ass = []
         source = []
         weights = []
         change = False
         
-        for lb in self.lbs_config.keys():
+        for lb in self.lbss:
             parent = nodes['lb{}'.format(lb)]
             for child_id in parent.child_ids:
                 ass.append(child_id)
@@ -1496,19 +1506,20 @@ class ClusteringAgent(object):
         if self.cluster_centers is None:
             self.kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
             destination = np.array(self.lbss)[self.kmeans.labels_]
+            self.cluster_centers = self.kmeans.cluster_centers_
             change = True
         else:
-            prediction = self.kmeans.predict(weights.reshape(-1,1))
-            destination = np.array(self.lbss)[prediction]
-            for i,pred in enumerate(prediction):
-                if source[i] != destination[i] and abs(weights[i]-self.cluster_centers[pred]) - abs(weights[i]-self.cluster_centers[pred]) < 0.1: # if too small a difference, don't consider it. This improves stability
+            self.kmeans = KMeans(n_clusters=self.n_lbs, init = self.cluster_centers).fit(weights.reshape(-1,1))
+            #prediction = self.kmeans.predict(weights.reshape(-1,1))
+            destination = np.array(self.lbss)[self.kmeans.labels_]
+            for i,pred in enumerate(destination):
+                if source[i] != destination[i] and abs(weights[i]-self.cluster_centers[pred]) - abs(weights[i]-self.cluster_centers[pred]) < threshold: # if too small a difference, don't consider it. This improves stability
                     destination[i] = source[i]
                 elif source[i] != destination[i]: change = True
-        self.cluster_centers = self.kmeans.cluster_centers_
-
+            self.cluster_centers = self.kmeans.cluster_centers_
         
         return change, zip(ass, source, destination)
-        
+
     def evaluate(self, nodes, method='kmeans'):
         change = False
         array = []
@@ -1516,7 +1527,9 @@ class ClusteringAgent(object):
             print('in evaluation')
         if method == 'kmeans':            
             change, array = self.kmeans_algorithm(nodes)
-        return change, array
+            return change, array
+        if method == 'heuristic':
+            return change , array
 
 
     def step(self, ts, nodes, debug=0):

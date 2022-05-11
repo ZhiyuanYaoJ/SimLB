@@ -27,6 +27,7 @@ DEBUG = 0
 from functools import wraps
 i=0
 t0=0
+t5=0
 sum=0
 def timeit(func):
     @wraps(func)
@@ -193,11 +194,15 @@ class SoftQNetwork(nn.Module):
             feature_as_bn_buffer.reshape(n_batch, -1), action
         ], 1)  # concat all features and actions into #n_batch rows
 
+        global t5
+        t6 = time.time()
         x = F.elu(self.linear1(x))
         x = self.ln1(x)
         # x=F.elu(self.linear2(x))
         # x=F.elu(self.linear3(x))
         x = self.linear4(x)
+        #t5 += time.time()-t6
+        #print(t5)
         return x
 
 
@@ -291,12 +296,17 @@ class PolicyNetwork(nn.Module):
             feature_as_bn_buffer.reshape(n_batch, -1)
         ], 1)  # concat all features and actions into #n_batch rows
 
+
+        global t5
+        t6 = time.time()
         x = F.elu(self.linear1(x))
         x = self.ln1(x)
         # x=F.elu(self.linear2(x))
         # x=F.elu(self.linear3(x))
         x = F.elu(self.linear4(x))
-
+        
+        #t5 += time.time()-t6
+        #print(t5)
         mean = self.mean_linear(x)
         log_std = self.log_std_linear(x)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
@@ -335,7 +345,6 @@ class PolicyNetwork(nn.Module):
         @return:
             action: w/ shape [num_actions]
         '''
-
         active_as, feature_lb, feature_as, _ = state  # ignore gt
         feature_lb = torch.FloatTensor(feature_lb).unsqueeze(0).to(DEVICE)
         feature_as = torch.FloatTensor(feature_as).unsqueeze(0).to(DEVICE)
@@ -465,6 +474,8 @@ class SAC_Trainer():
             alpha_loss = 0
 
     # update Q function
+        global t5
+        t6 = time.time()
         target_q_min = torch.min(
             self.target_soft_q_net1(next_state, new_next_action),
             self.target_soft_q_net2(
@@ -474,6 +485,8 @@ class SAC_Trainer():
                                                target_q_value.detach())
         q_value_loss2 = self.soft_q_criterion2(predicted_q_value2,
                                                target_q_value.detach())
+        t5 += time.time()-t6
+        #print(t5)
 
         self.soft_q_optimizer1.zero_grad()
         q_value_loss1.backward()
@@ -487,9 +500,12 @@ class SAC_Trainer():
                                           self.soft_q_net2(state, new_action))
         policy_loss = (self.alpha * log_prob - predicted_new_q_value).mean()
 
+        #this part takes time
         self.policy_optimizer.zero_grad()
         policy_loss.backward()
         self.policy_optimizer.step()
+        #
+
 
         # Soft update the target value net
         for target_param, param in zip(self.target_soft_q_net1.parameters(),

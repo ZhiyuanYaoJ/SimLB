@@ -21,7 +21,7 @@ np.random.seed(SEED)
 
 N_AS = 6  # number of application server node(s)
 
-ACTION_DIM = 6  # maximal amount of application server nodes, as in emulator
+ACTION_DIM = 2  # maximal amount of application server nodes, as in emulator
 
 # baseline number of worker threads for each AS 
 N_WORKER_BASELINE = 2
@@ -51,7 +51,7 @@ METHOD = 'heuristic'
 
 # the feature to be used to calculate reward | previously as `reward_feature`
 REWARD_FEATURE = 'res_fct_avg_disc'
-HIDDEN_DIM = 128
+HIDDEN_DIM = 512
 REWARD_OPTION = 2
 # including 
 #   0: 1-overprovision; 
@@ -71,7 +71,7 @@ LB_BUCKET_SIZE = 65536
 # ------------------------------------ Clustering----------------------------- #
 
 HIERARCHICAL = False
-CLUSTERING_PERIOD = 2
+CLUSTERING_PERIOD = 0.5
 CLUSTERING_METHOD = 'kmeans'
 
 # ---------------------------------- Client ---------------------------------- #
@@ -103,6 +103,7 @@ REDUCE_METHODS = [
     'p90',          # 90th-percentile
     'avg_disc',     # discounted weighted averaged based on samples' freshness
     'avg_decay',    # simple average based on samples' freshness
+    'avg_step',     # average of difference between flow expiring ts
     ]
 
 # features that are collected by reservoir sampling in emulator
@@ -168,7 +169,7 @@ PROCESS_N_STAGE = 1
 # including normal and exponential distribution of flow complete time (FCT)
 CPU_FCT_TYPE = 'exp'
 
-CPU_FCT_MU = 0.5  # average FCT
+CPU_FCT_MU = 0.1  # average FCT
 
 CPU_FCT_STD = 0.1  # FCT standard deviation (useless for exponential distribution)
 
@@ -219,7 +220,7 @@ def get_app_config(
     if cpu_fct_type:
         config['cpu_distribution'] = {}
         config['cpu_distribution']['fct_type'] = cpu_fct_type
-        if cpu_fct_type == 'exp':
+        if cpu_fct_type in ['exp', 'same']:
             assert cpu_fct_mu
             config['cpu_distribution'].update({'mu': cpu_fct_mu})
         elif cpu_fct_type in ['normal', 'uniform', 'lognormal']:
