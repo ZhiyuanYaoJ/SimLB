@@ -203,6 +203,18 @@ def calcul_fair(values):
         return pow(sum(values), 2)/(n*sum(pow(values, 2)))
     else:
         return 1.
+    
+def calcul_fair_efficient1(values):
+    
+    values = np.array(values)
+    n = len(values)
+    if sum(values) != 0.:
+        utility = CPU_FCT_MU/np.mean(values)
+        fairness =  pow(sum(values), 2)/(n*sum(pow(values, 2)))
+        return fairness * utility
+    else:
+        return 1.
+    
 
 def calcul_over(values):
     '''
@@ -314,6 +326,7 @@ reward_options = {
     1: lambda x: min(x) - max(x),
     # option 2: Jain's fairness index - 1
     2: lambda x: calcul_fair(x)-1,
+    3: lambda x: calcul_fair_efficient1(x)-1,
 }
 
 def fct_generator(fct_type): 

@@ -13,7 +13,7 @@ from config.global_conf import *
 DEBUG = 0
 user_conf = {}
 
-
+'''
 u = {
     'METHODS' : {
         "rlb-sac": {# SAC model
@@ -21,7 +21,7 @@ u = {
                 'SAC_training_confs_': {
                     'hidden_dim': 100,
                     'action_range': 1.,
-                    'batch_size': 64,
+                    'batch_size': 65,
                     'update_itr': 10,
                     'reward_scale': 10.,
                     'save_interval': 100,  # time interval for saving models, in seconds
@@ -36,3 +36,4 @@ u = {
 #user_conf = {i:u for i in range (len(hidden))}
 #for i in range (len(hidden)):
     #u['METHODS']['rlb-sac']['config']['SAC_training_confs_']['hidden_dim'] = hidden[i]
+'''

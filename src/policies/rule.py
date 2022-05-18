@@ -8,9 +8,11 @@ import numpy as np
 
 class NodeLBLSQ(NodeLB):
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, weighted = False, b_offset=B_OFFSET, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights, max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
         self.po2 = po2 # power-of-2-choices
+        self.weighted = weighted
+        self.b_offset = b_offset
 
 
     def choose_child(self, flow, nodes=None, ts=None):
@@ -26,8 +28,13 @@ class NodeLBLSQ(NodeLB):
             if self.debug > 1:
                 print("n_flow_on chosen {} out of -".format(child_id), n_flow_on_2)
         else:
-            min_n_flow = n_flow_on[self.child_ids].min()
-            n_flow_map = zip(self.child_ids, n_flow_on[self.child_ids])
+            if self.weighted == True:
+                score = [(self.b_offset+n_flow_on[i])/self.weights[i] for i in self.child_ids]
+                min_n_flow = min(score)
+                n_flow_map = zip(self.child_ids, score)
+            else:
+                min_n_flow = n_flow_on[self.child_ids].min()
+                n_flow_map = zip(self.child_ids, n_flow_on[self.child_ids])
             min_ids = [k for k, v in n_flow_map if v == min_n_flow]
             child_id = random.choice(min_ids)
             n_flow_map = zip(self.child_ids, n_flow_on[self.child_ids])

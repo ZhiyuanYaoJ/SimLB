@@ -68,15 +68,20 @@ def generate_node_config_tier4(
 
     #for i in range(n_worker2change):  # update half as configuration
         #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
-        
-    as_config[0].update({'n_worker': 1})     
-    as_config[1].update({'n_worker': 2})
+    '''  
+    as_config[0].update({'n_worker': 4})     
+    as_config[1].update({'n_worker': 8})
     try:     
-        as_config[2].update({'n_worker': 2})     
-        as_config[3].update({'n_worker': 1})     
-        as_config[4].update({'n_worker': 1})     
-        as_config[5].update({'n_worker': 1})  
+        as_config[2].update({'n_worker': 4})     
+        as_config[3].update({'n_worker': 4})   
     except: pass
+    try:  
+        as_config[4].update({'n_worker': 6})     
+        as_config[5].update({'n_worker': 4})  
+        as_config[6].update({'n_worker': 4})  
+        as_config[7].update({'n_worker': 4})  
+    except: pass
+    '''
     if 'config' in METHODS[lb_method].keys():
         if 'weights' in METHODS[lb_method]['config'].keys() and METHODS[lb_method]['config']['weights'] == {}:
             METHODS[lb_method]['config']['weights'] = {
@@ -88,13 +93,13 @@ def generate_node_config_tier4(
             lb_config[i].update({'logger_dir': log_folder+'/rl.log',
                                  'rl_test': rl_test})
 
-    if user_conf >= 0:
-        configuration = config.user_conf.user_conf[user_conf]
-        if lb_method in configuration['METHODS'].keys() and 'config' in METHODS[lb_method].keys():
-            for i in lb_config.keys():
-                lb_config[i].update(configuration['METHODS'][lb_method]['config'])
-        print(configuration['METHODS'][lb_method]['config'])
-        print(lb_config[0])
+    #if user_conf >= 0:
+    #    configuration = config.user_conf.user_conf[user_conf]
+    #    if lb_method in configuration['METHODS'].keys() and 'config' in METHODS[lb_method].keys():
+    #        for i in lb_config.keys():
+    #            lb_config[i].update(configuration['METHODS'][lb_method]['config'])
+    #    print(configuration['METHODS'][lb_method]['config'])
+    #    print(lb_config[0])
     
     return {
         'clt': clt_config,

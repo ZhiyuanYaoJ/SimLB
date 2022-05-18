@@ -9,7 +9,7 @@ import random
 import numpy as np
 import argparse
 
-SEED = 42  # random seed
+SEED = 44  # random seed
 random.seed(SEED)
 np.random.seed(SEED)
 
@@ -19,12 +19,12 @@ np.random.seed(SEED)
 
 # ------------------------------------ AS ------------------------------------ #
 
-N_AS = 6  # number of application server node(s)
+N_AS = 4  # number of application server node(s)
 
-ACTION_DIM = 2  # maximal amount of application server nodes, as in emulator
+ACTION_DIM = 8  # maximal amount of application server nodes, as in emulator
 
 # baseline number of worker threads for each AS 
-N_WORKER_BASELINE = 2
+N_WORKER_BASELINE = 1
 
 # mutliprocessing level
 AS_MULTIPROCESS_LEVEL = 1
@@ -71,7 +71,7 @@ LB_BUCKET_SIZE = 65536
 # ------------------------------------ Clustering----------------------------- #
 
 HIERARCHICAL = False
-CLUSTERING_PERIOD = 0.5
+CLUSTERING_PERIOD = 0.1
 CLUSTERING_METHOD = 'kmeans'
 
 # ---------------------------------- Client ---------------------------------- #
@@ -142,16 +142,16 @@ N_FEATURE_LB = len(FEATURE_LB_ALL) + len(FEATURE_AS_ALL)
 # ---------------------------------------------------------------------------- #
 
 N_EPISODE = 1 # number of episodes to run
-EPISODE_LEN = 200.  # (unit s) episode length | previously as `args.t_stop`
+EPISODE_LEN = 60  # (unit s) episode length | previously as `args.t_stop`
 N_FLOW_TOTAL = None # define this if we don't want to simulate on number of flows instead of episode time
-EPISODE_LEN_INC = 1.  # incremental episode length | previously as `args.t_inc`
+EPISODE_LEN_INC = 5  # incremental episode length | previously as `args.t_inc`
 
 # ---------------------------------------------------------------------------- #
 #                                  Environment                                 #
 # ---------------------------------------------------------------------------- #
 
 DEBUG = 0  # level of debug mode 0 < 1 < 2
-
+DISPLAY = 1
 RENDER = False  # set to False if nothing need to be rendered into a log file every `step`
 RENDER_RECEIVE = False  # set to False if nothing need to be rendered into a log file whenever receiving a `flow`
 
@@ -328,7 +328,7 @@ parser.add_argument('-m1', action='store', default='ecmp', dest='method1',
 parser.add_argument('-m2', action='store', default='ecmp', dest='method2',
                     help='Load distribution method (ecmp, weight, lsq, lsq2, heuristic, kf1d, sac, ...)')
 
-parser.add_argument('--auto-clustering', action='store', type=bool, default=False, dest='auto_clustering',
+parser.add_argument('--auto-clustering', action='store_true', default=False, dest='auto_clustering',
                     help='Wether ass should be regrouped among equal size')
 
 parser.add_argument('--user-conf', action='store', type=int, default=-1, dest='user_conf',
@@ -456,3 +456,7 @@ parser.add_argument('--hidden-dim', type=int, action='store', default=HIDDEN_DIM
 parser.add_argument('--lb-bucket-size', type=int, action='store',
                     default=LB_BUCKET_SIZE, dest='lb_bucket_size',
                     help='Change the size of flow table')
+
+parser.add_argument('--max-n-child', type=int, action='store',
+                    default=ACTION_DIM, dest='max_n_child',
+                    help='max_n_child')

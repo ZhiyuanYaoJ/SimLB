@@ -43,7 +43,7 @@ SAC_training_confs = {'hidden_dim': HIDDEN_DIM,
 
 DETERMINISTIC = False
 
-class NodeRLBSAC(NodeLB):
+class NodeRLBSAC_Small(NodeLB):
     '''
     @brief:
         RL solution for simulated load balancer with SAC model.
@@ -79,10 +79,10 @@ class NodeRLBSAC(NodeLB):
         self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
         self.last_state = None
         self.last_action = None
-        self.action_dim = max_n_child
+        self.action_dim = 1
         global SAC_training_confs
         SAC_training_confs = SAC_training_confs_
-        self.sac_trainer = SAC_Trainer(self.replay_buffer, n_feature_as=N_FEATURE_AS, n_feature_lb=N_FEATURE_LB,
+        self.sac_trainer = SAC_Trainer(self.replay_buffer, n_feature_as=N_FEATURE_AS + 1, n_feature_lb=N_FEATURE_LB,
                                        hidden_dim=SAC_training_confs['hidden_dim'], action_range=SAC_training_confs['action_range'],
                                        action_dim=self.action_dim, logger=self.logger)
         
@@ -94,12 +94,6 @@ class NodeRLBSAC(NodeLB):
         if self.rl_test:
             model_path = SAC_training_confs['model_path']
             self.sac_trainer.load_model(model_path)
-
-    def choose_as(self):
-        as_id = random.choices(
-            self.active_as, [self.weights[as_id_] for as_id_ in self.active_as])
-        return as_id[0]
-    
     
     def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
@@ -128,22 +122,24 @@ class NodeRLBSAC(NodeLB):
         return child_id, bucket_id
 
 
-    def get_state(self, ts, nodes=None):
+    def get_state(self, ts, nodes=None, child_id = None):
         '''
         @brief:
             get state that matches the SAC model format
         '''
         obs = self.get_observation(ts)
-        feature_as = np.array([obs[k] for k in FEATURE_AS_ALL]).T
-        feature_lb = [obs[k] for k in FEATURE_LB_ALL] + list(feature_as[self.child_ids].mean(axis=0)) # feature_lb has lb feature + averaged as feature
+        all_feature_as = np.array([obs[k] for k in FEATURE_AS_ALL]).T
+        feature_as = np.array([[child_id] + [obs[k][child_id] for k in FEATURE_AS_ALL]])
+        #feature_lb = [obs[k] for k in FEATURE_LB_ALL] + list(feature_as[self.child_ids].mean(axis=0)) # feature_lb has lb feature + averaged as feature
+        feature_lb = [obs[k] for k in FEATURE_LB_ALL] + list(all_feature_as[self.child_ids].mean(axis=0)) # feature_lb has lb feature + averaged as feature
         if False:
             t_rest_all = np.zeros(self.max_n_child)
             t_rest_all[self.child_ids] = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts) for i in self.child_ids]
         t_rest_all = None    
         
-        return (self.child_ids, feature_lb, feature_as, t_rest_all) # gt set to rest time
+        return ([0], feature_lb, feature_as, t_rest_all) # gt set to rest time
    
-    def generate_weight(self, state):
+    def generate_weight(self, state, child_id = None):
         '''
         @brief:
             core algorithm for updating weights, in to steps:
@@ -151,10 +147,10 @@ class NodeRLBSAC(NodeLB):
                 2. data fusion of new and old states
         '''
         t0 = time.time()
-        new_weights = self.sac_trainer.policy_net.get_action(
-            state, deterministic=DETERMINISTIC)
+        
+        new_weights = self.sac_trainer.policy_net.get_action(state, deterministic=DETERMINISTIC)
         # softly update weights
-        self.weights = self.alpha*new_weights+(1-self.alpha)*self.weights
+        self.weights[child_id] = self.alpha*new_weights+(1-self.alpha)*self.weights[child_id]
         return time.time() - t0
 
     def step(self, ts, nodes=None):
@@ -169,22 +165,27 @@ class NodeRLBSAC(NodeLB):
         t0 = time.time()  # take the first timestamp
 
         # step 0: get state
-        state = self.get_state(ts, nodes=nodes)
+        state = {}
+        for i in self.child_ids:
+            state[i] = self.get_state(ts, nodes=nodes, child_id=i)
 
         # step 1: get reward for last action
         reward = self.calcul_reward(ts)
 
         # step 2: feed data into buffer
         if self.last_state:  # ignore the first step
-            self.replay_buffer.push(
-                self.last_state, self.last_action, reward, state)
+            for i in self.child_ids:
+                self.replay_buffer.push(
+                    self.last_state[i], [self.last_action[i]], reward, state[i])
 
         # step 3
         t1 = time.time()  # take the second timestamp
         self.train()
 
         # step 4
-        t_gen_weight = self.generate_weight(state)
+        t_gen_weight = 0
+        for i in self.child_ids:
+            t_gen_weight += self.generate_weight(state[i], child_id=i)
 
         # step -1
         self.last_state = state
@@ -213,17 +214,18 @@ class NodeRLBSAC(NodeLB):
 
         print(">> ({:.3f}s) in {}: new weights {}".format(
             ts, self.__class__, self.weights[self.child_ids]))
-
+        
+        
     def train(self):
         '''
         @brief:
             update SAC models with samples from buffer
             TODO: whether update for each step or for each episode, need to be determined
         '''
-        if len(self.replay_buffer) > SAC_training_confs['batch_size']:
+        if len(self.replay_buffer) > SAC_training_confs['batch_size'] * len(self.child_ids):
             for i in range(SAC_training_confs['update_itr']):
                 _ = self.sac_trainer.update(
-                    SAC_training_confs['batch_size'],
+                    SAC_training_confs['batch_size'] * len(self.child_ids),
                     reward_scale=SAC_training_confs['reward_scale'],
                     auto_entropy=SAC_training_confs['AUTO_ENTROPY'],
                     target_entropy=-1.*self.action_dim,

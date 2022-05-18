@@ -28,6 +28,7 @@ def init_global_variables(args):
         rl_test=args.rl_test,
         debug=DEBUG)
 
+    # Application configuration
     fct_mu = args.cpu_fct_mu
     if args.process_n_stage > 1:
         fct_mu += args.io_fct_mu
@@ -38,6 +39,25 @@ def init_global_variables(args):
 
     for i in NODE_CONFIG['clt'].keys():
         NODE_CONFIG['clt'][i].update({'app_config': app_config}),
+        
+    # RLB configuration
+    if 'lbrlb-sac' in args.method1:
+        hidden_dim = args.hidden_dim
+        lb_period = args.lb_period
+        reward_option = args.reward_option
+        SAC_training_conf = {'hidden_dim': args.hidden_dim,
+                        'action_range': 1.,
+                        'batch_size': 64,
+                        'update_itr': 10,
+                        'reward_scale': 10.,
+                        'save_interval': 30,  # time interval for saving models, in seconds
+                        'AUTO_ENTROPY': True,
+                        'model_path': 'models2/sac_v2',
+                        }
+        for i in NODE_CONFIG['lb-rlb-sac'].keys():
+            NODE_CONFIG['lb-rlb-sac'][i].update({'SAC_training_confs_': SAC_training_conf,
+                                                'lb_period' : args.lb_period,
+                                                'reward_option' : args.reward_option}),
 
     # update log folder
     global LOG_FOLDER 

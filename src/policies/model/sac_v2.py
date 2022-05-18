@@ -21,7 +21,7 @@ import struct
 
 #--- MACROS ---#
 DEVICE = torch.device("cpu")
-REPLAY_BUFFER_SIZE = 3000
+REPLAY_BUFFER_SIZE = 1000
 DEBUG = 0
 
 from functools import wraps
@@ -194,15 +194,11 @@ class SoftQNetwork(nn.Module):
             feature_as_bn_buffer.reshape(n_batch, -1), action
         ], 1)  # concat all features and actions into #n_batch rows
 
-        global t5
-        t6 = time.time()
         x = F.elu(self.linear1(x))
         x = self.ln1(x)
         # x=F.elu(self.linear2(x))
         # x=F.elu(self.linear3(x))
         x = self.linear4(x)
-        #t5 += time.time()-t6
-        #print(t5)
         return x
 
 
@@ -297,16 +293,11 @@ class PolicyNetwork(nn.Module):
         ], 1)  # concat all features and actions into #n_batch rows
 
 
-        global t5
-        t6 = time.time()
         x = F.elu(self.linear1(x))
         x = self.ln1(x)
         # x=F.elu(self.linear2(x))
         # x=F.elu(self.linear3(x))
         x = F.elu(self.linear4(x))
-        
-        #t5 += time.time()-t6
-        #print(t5)
         mean = self.mean_linear(x)
         log_std = self.log_std_linear(x)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
@@ -474,8 +465,6 @@ class SAC_Trainer():
             alpha_loss = 0
 
     # update Q function
-        global t5
-        t6 = time.time()
         target_q_min = torch.min(
             self.target_soft_q_net1(next_state, new_next_action),
             self.target_soft_q_net2(
@@ -485,8 +474,6 @@ class SAC_Trainer():
                                                target_q_value.detach())
         q_value_loss2 = self.soft_q_criterion2(predicted_q_value2,
                                                target_q_value.detach())
-        t5 += time.time()-t6
-        #print(t5)
 
         self.soft_q_optimizer1.zero_grad()
         q_value_loss1.backward()

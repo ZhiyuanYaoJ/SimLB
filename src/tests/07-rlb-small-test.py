@@ -5,15 +5,15 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 46
+n_thread_max = 2
 counter = None
-query_rate_list = np.array([0.115 * i for i in range(1, 6)] + [0.115 * 5 + 0.035 * i for i in range(
-    1, 5)] + [0.115 * 5 + 0.03 * 5 + 0.02 * i for i in range(1, 14)] + [1])[6::4]
+query_rate_list = [0.9]
 
 def init(args):
     ''' store the counter for later use '''
     global counter
     counter = args
+
 
 def create_path(dirName):
     if not os.path.exists(dirName):
@@ -59,74 +59,71 @@ def add_rates(tasks, rates):
         for rate in rates:
             log_folder = os.path.join(foldername, 'rate{:.3f}'.format(rate))
             Path(log_folder).mkdir(parents=False, exist_ok=True)
+            print(cmd_preamable)
+            print('')
             cmd = cmd_preamable + \
                 ' --lambda {0:.3f} -w {1} > {1}/test.log'.format(
                     rate, log_folder)
             final_task.append((cmd, log_folder))
 
+
     return final_task
 
 
-seed = 46
+seed = 45
 
 methods = [
-    #=== rule ===#
-    "ecmp", # Equal-Cost Multi-Path (ECMP)
-    "wcmp", # Weighted-Cost Multi-Path (WCMP)
-    "gsq", # Global shortest queue (GSQ) (Layer-7)
-    "gsq2", # GSQ + power-of-2-choices·
-    #=== heuristic ===#
-    "geom", # geometry-based algorithm
-    "geom-w", # geometry-based algorithm
+    "rlb-sac", # SAC model
+    "rlb-sac-small", # SAC model
 ]
 
-# grid search dimensions
-n_lbs = [2]
-n_ass = [64]
-n_worker = 1
-n_worker_multipliers = [2] # change this to compare server capacity variance
-fct_mus = [0.5] # change this to compare different input traffic distribution
-n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
-n_episode = 3
-fct_io = 0.25
-setup_fmt = '{}lb-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
+n_lb = [1]
+n_ass = [2,64]
+setup_fmt = '{}lb-{}as'
+
+hidden_dims = [64, 512]
+lb_periods = [0.5]
+max_n_childs = [2]
+
+n_episode = 10
 first_episode_id = 0
-n_flow_total = int(5e4)
+t_episode = 60
+t_episode_inc = 5
+
+
 #--- other options ---#
 # add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
 # add ' --lb-period {}'.format(lb_period) to change bucket size
 
 
 if __name__ == "__main__":  # confirms that the code is under main function
-
     tasks = []
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'log-dump-all'
+    experiment_name = 'rlb-small-test'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
-    for n_lb in n_lbs:
+    for n_lb in n_lb:
         for n_as in n_ass:
-            for n_worker_multiplier in n_worker_multipliers:
-                for fct_mu in fct_mus:
-                    setup = setup_fmt.format(
-                        n_lb, n_as, n_worker, n_process_stage, fct_mu)
-                    if n_process_stage > 1:
-                        setup += '-{:.2f}iomu'.format(fct_io)
-                    print(setup)
-                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {} --dump-all'.format(
-                        n_lb, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
-                    for method in methods:
-                        cmd = cmd_preamable + ' -m {}'.format(method)
-                        log_folder = '/'.join([data_dir, setup, method])
-                        tasks.append([cmd, log_folder])
-                        Path(log_folder).mkdir(parents=True, exist_ok=True)
+            for hidden_dim in hidden_dims:
+                for max_n_child in max_n_childs:
+                    for lb_period in lb_periods:
+                        setup = setup_fmt.format(
+                            n_lb, n_as)
+                        print(setup)
+                        cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --hidden-dim {} --lb-period {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
+                            n_lb, n_as, hidden_dim, lb_period, max_n_child, t_episode, t_episode_inc, n_episode)                        
+                        for method in methods:
+                            cmd = cmd_preamable + ' -m {}'.format(method)
+                            log_folder = '/'.join([data_dir, setup, method])
+                            tasks.append([cmd, log_folder])
+                            Path(log_folder).mkdir(parents=True, exist_ok=True)
+                            print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
-
     total_task = len(final_tasks)
-    # for t in final_tasks:
-    #     print(t)
+    for t in final_tasks:
+        print(t)
     print('total tasks = {}'.format(total_task))
     pool_handler(tuple(final_tasks))

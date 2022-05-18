@@ -43,6 +43,8 @@ class Simulator:
             for i, conf in config.items():
                 node_id = '{}{}'.format(node_type_prefix, i)
                 self.nodes[node_id] = NODE_MAP[node_type](node_id, **conf)
+        if self.auto_clustering == True: 
+            self.clustering_agent = ClusteringAgent(self.nodes, self.node_config, method = CLUSTERING_METHOD, debug=0)
 
 
     def reset(self):
@@ -53,11 +55,12 @@ class Simulator:
         event_buffer.put(Event(float('inf'), 'end_of_the_world', 'god', {}), checkfull=False)
         for event in self.cp_events: event_buffer.put(Event(*event))
  
-        del self.nodes
-        self.nodes = {}
-        self.init_nodes()
-        if self.auto_clustering == 'True': 
-            self.clustering_agent = ClusteringAgent(self.nodes, self.node_config, method = CLUSTERING_METHOD, debug=0)
+        if self.nodes == {}:
+            self.init_nodes()
+        else:
+            for node in self.nodes.values():
+                node.reset()
+
         
 
 
@@ -97,7 +100,7 @@ class Simulator:
         t0 = time.time()
         # t_last = t0
         
-        if self.n_flow_total > 0: # prioritize n_flow_total
+        if self.n_flow_total and self.n_flow_total > 0: # prioritize n_flow_total
             eval2run = "self.n_flow_done < self.n_flow_total"
         else:
             eval2run = "sim_time < self.t_episode"
@@ -169,7 +172,7 @@ class Simulator:
             # reset environment
             self.reset()
             
-            if self.n_flow_total < 0:
+            if not self.n_flow_total or self.n_flow_total < 0:
                 # update episode duration (use exponential so that we only need 1 parameter since mean==stddev)
                 self.t_episode += np.random.exponential(self.t_episode_inc)
 

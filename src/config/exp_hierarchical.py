@@ -86,21 +86,22 @@ def generate_node_config_hierarchical(
     
 
     k, m = divmod(n_as, n_lbs)
+    if m>0: k+=1
     for i in lbs_config:
         lbs_config[i]['child_ids'] = list(range((i-1)*k,min((i)*k, n_as)))
 
     #for i in range(n_worker2change):  # update half as configuration
         #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
-        
-    #for i in as_config:
-        #as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})        
+    for i in as_config:
+        as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})        
+    '''
     as_config[0].update({'n_worker': 1})     
     as_config[1].update({'n_worker': 2})     
     as_config[2].update({'n_worker': 2})     
     as_config[3].update({'n_worker': 1})     
     as_config[4].update({'n_worker': 1})     
     as_config[5].update({'n_worker': 1})     
-    
+    '''
         
         
     # For secondary LB

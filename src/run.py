@@ -29,6 +29,7 @@ def init_global_variables(args):
         debug=DEBUG)
 
 
+    # Application configuration
     fct_mu = args.cpu_fct_mu
     if args.process_n_stage > 1:
         fct_mu += args.io_fct_mu
@@ -39,15 +40,30 @@ def init_global_variables(args):
 
     for i in NODE_CONFIG['clt'].keys():
         NODE_CONFIG['clt'][i].update({'app_config': app_config}),
+        
+    # RLB configuration
+    if 'rlb-sac' in args.method:
+        hidden_dim = args.hidden_dim
+        lb_period = args.lb_period
+        reward_option = args.reward_option
+        SAC_training_conf = {'hidden_dim': args.hidden_dim,
+                            'action_range': 1.,
+                            'batch_size': 64,
+                            'update_itr': 10,
+                            'reward_scale': 10.,
+                            'save_interval': 30,  # time interval for saving models, in seconds
+                            'AUTO_ENTROPY': True,
+                            'model_path': 'models2/sac_v2',
+                            }
+        for i in NODE_CONFIG['lb-' + args.method].keys():
+            NODE_CONFIG['lb-'+ args.method][i].update({'SAC_training_confs_': SAC_training_conf,
+                                                    'lb_period' : args.lb_period,
+                                                    'reward_option' : args.reward_option,
+                                                    'max_n_child': args.max_n_child}),
 
     # update log folder
     global LOG_FOLDER 
     LOG_FOLDER= args.log_folder
-    
-    HIDDEN_DIM=args.hidden_dim
-    REWARD_OPTION=args.reward_option
-    REWARD_FEATURE=args.reward_feature
-
 
     # print out basic info
     print("unit traffic rate for current setup: {}".format(UNIT_TRAFFIC_RATE))

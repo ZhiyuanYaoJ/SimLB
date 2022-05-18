@@ -17,9 +17,11 @@ from collections import namedtuple
 from heapq import heappush, heappop, heapify
 
 from sklearn.cluster import KMeans
-from numpy import savez_compressed
+from numpy import savez_compressed, std
 from config.global_conf import *
 from common.utils import *
+from statistics import mean
+import warnings
 
 tab = [0,0]
 Event = namedtuple('Event', 'time name added_by kwargs')
@@ -329,6 +331,32 @@ class PriorityQueue:
     def reset(self):
         del self.queue
         self.queue = []
+
+class RingBuffer:
+    """ class that implements a not-yet-full buffer """
+    def __init__(self,capacity):
+        self.queue = [0]*capacity
+        self.size = 0
+        self.tail = -1
+        self.capacity = capacity
+        
+    def put(self, item):
+        self.tail = (self.tail+1) % self.capacity
+        self.queue[self.tail] = item
+        
+        if self.size < self.capacity: self.size += 1
+        
+    def average(self):
+        if self.size < self.capacity:
+            return None
+        else:
+            return np.mean(self.queue, axis = 0)
+
+    def std(self):
+        if self.size < self.capacity:
+            return -1
+        else:
+            return np.std(self.queue)        
 
 class ReservoirSamplingBuffer(object):
     '''
@@ -1071,7 +1099,9 @@ class NodeLB(NodeStatelessLB):
         '''
         feature_all = self.get_observation(ts)
         feature_reward = feature_all[reward_field][self.child_ids]
-        print('Reward = {}'.format(self.reward_fn(feature_reward)))
+        #print('feature reward = {}'.format(["{:.3f}".format(f) for f in feature_reward]))
+        if DISPLAY>0:
+            print('Reward = {}'.format(self.reward_fn(feature_reward)))
         return self.reward_fn(feature_reward)
 
     def get_observation(self, ts):
@@ -1249,7 +1279,7 @@ class NodeLB(NodeStatelessLB):
         print('{:<30s}'.format('Total untracked flows:')+str(self.n_untracked_flow))
         
         if nodes:
-            if self.layer==1:
+            if DISPLAY >0 and self.layer==1:
                 print('{:<30s}'.format('Actual On Flow:')+' |'.join(
                     [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
                 print('{:<30s}'.format('Number of Workers:')+' |'.join(
@@ -1266,7 +1296,7 @@ class NodeLB(NodeStatelessLB):
         if RENDER: self.render(ts, nodes)
         t_delay = self.get_process_delay()
         # self.register_event(ts + t_delay, 'lb_update_bucket', {'node_id': self.id})
-        if self.layer==1:
+        if DISPLAY > 0 and self.layer==1:
             print('{:<30s}'.format('Actual On Flow:')+' |'.join(
                 [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
         self.calcul_reward(ts)    
@@ -1454,14 +1484,17 @@ class ClusteringAgent(object):
     
     global event_buffer
     
-    def __init__(self, nodes, node_config, method=CLUSTERING_METHOD, debug=0):
+    def __init__(self, nodes, node_config, method=CLUSTERING_METHOD, memory = 16, debug=0):
         self.method=method
-        self.threshold = 0.5
         self.reset(node_config)
         self.debug = 1
+        self.counter = 0
         self.kmeans = None
         self.cluster_centers = None
-        self.noise = np.random.normal(scale = 0.05, size = self.n_as)
+        self.noise = np.random.normal(scale = 0.01, size = self.n_as)
+        self.memory = memory
+        self.ring_buffer = RingBuffer(capacity=memory)
+
 
     def register_event(self, ts, event, kwargs={}):
         '''
@@ -1476,76 +1509,181 @@ class ClusteringAgent(object):
         for k in [k for k in node_config if 'lb' in k]:
             lb_config.update(node_config[k])
             
+        as_config={}
+        for k in [k for k in node_config if 'as' in k]:
+            as_config.update(node_config[k])
+            
         lbs_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']==1}
-        #self.lbp_config= {k:lb_config[k] for k in lb_config if lb_config[k]['layer']>1}
         self.lbss = list(lbs_config.keys())
-        #self.as_config = node_config['as']
-        self.n_as = len(node_config['as'])
+        self.ass  = list(as_config.keys())
+        self.n_as = len(self.ass)
         self.n_lbs = len(self.lbss)
-
+        self.weights = np.ones(self.n_as)
+        self.inertia = {a:0 for a in self.ass}
         self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
         
-
-    def kmeans_algorithm(self, nodes, threshold = 0.2):
+    def estimate(self, ts, nodes):
+        
+        avg = self.ring_buffer.average()
+        if avg is not None:
+            self.weights = avg
+     
+    def fill_buffer(self, ts, nodes):
+        features = np.zeros(self.n_as)
+        for lb in self.lbss:
+            parent = nodes['lb{}'.format(lb)]
+            for i in parent.child_ids:
+                features[i] = parent.get_observation(ts)[REWARD_FEATURE][i]
+        self.ring_buffer.put(features)
+         
+    def kmeans_3steps(self, nodes, threshold = 0.01, inertia = 10):
+            ass = []
+            source = []
+            weights = []
+            change = False
+            clusters = {lb:[] for lb in self.lbss}
+            
+            for lb in self.lbss:
+                parent = nodes['lb{}'.format(lb)]
+                for child_id in parent.child_ids:
+                    ass.append(child_id)
+                    source.append(lb)
+                    #weights.append(float(nodes['as{}'.format(child_id)].n_worker))
+                    weights.append(self.weights[child_id])
+                    clusters[lb].append(self.weights[child_id])
+            weights=np.array(weights)
+            weights+=self.noise
+            
+            if self.cluster_centers is None:
+                kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
+                destination = np.array(self.lbss)[kmeans.labels_]
+                self.cluster_centers = kmeans.cluster_centers_
+                change = True
+                
+            #Other times
+            else:
+                self.cluster_centers = np.array([np.mean(clusters[lb]) for lb in self.lbss])
+                print(self.cluster_centers)
+                init = self.cluster_centers.reshape(-1,1)
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('ignore')
+                    new_kmeans = KMeans(n_clusters=self.n_lbs, init = init).fit(weights.reshape(-1,1))
+                new_centers = new_kmeans.cluster_centers_.reshape(-1)
+                destination = np.array(self.lbss)[new_kmeans.labels_]
+                for i,pred in enumerate(new_kmeans.labels_):
+                    if self.inertia[ass[i]] >0 : self.inertia[ass[i]] -= 1
+                    if source[i] != destination[i] and abs(weights[i]-self.cluster_centers[self.lbss.index(source[i])]) - abs(weights[i]-new_centers[pred]) < threshold: # if too small a difference, don't consider it. This improves stability
+                        destination[i] = source[i]
+                    elif source[i] != destination[i] and self.inertia[ass[i]] >0: 
+                        destination[i] = source[i]
+                    elif source[i] != destination[i]: 
+                        change = True
+                        self.inertia[ass[i]] = inertia
+                #self.cluster_centers = np.array([mean([weights[i] for i in range(len(weights)) if (self.lbss.index(destination[i]) == j)]) for j in range(len(self.lbss))])
+            return change, zip(ass, source, destination)
+        
+    def heuristic_combined(self, nodes, threshold = 0.3, inertia = 10):
         ass = []
         source = []
+        destination = []
         weights = []
         change = False
+        groups = {lb:[] for lb in self.lbss}
         
         for lb in self.lbss:
             parent = nodes['lb{}'.format(lb)]
             for child_id in parent.child_ids:
                 ass.append(child_id)
                 source.append(lb)
-                weights.append(float(nodes['as{}'.format(child_id)].n_worker))
-                #weights.append(parent.weights[child_id]) 
-                
+                #weights.append(float(nodes['as{}'.format(child_id)].n_worker))
+                weights.append(self.weights[child_id])
+                groups[lb].append(self.weights[child_id])
         weights=np.array(weights)
-        weights+=self.noise
-        
+        #weights+=self.noise
         if self.cluster_centers is None:
-            self.kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
-            destination = np.array(self.lbss)[self.kmeans.labels_]
-            self.cluster_centers = self.kmeans.cluster_centers_
+            kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
+            destination = np.array(self.lbss)[kmeans.labels_]
+            self.cluster_centers = kmeans.cluster_centers_
             change = True
         else:
-            self.kmeans = KMeans(n_clusters=self.n_lbs, init = self.cluster_centers).fit(weights.reshape(-1,1))
-            #prediction = self.kmeans.predict(weights.reshape(-1,1))
-            destination = np.array(self.lbss)[self.kmeans.labels_]
-            for i,pred in enumerate(destination):
-                if source[i] != destination[i] and abs(weights[i]-self.cluster_centers[pred]) - abs(weights[i]-self.cluster_centers[pred]) < threshold: # if too small a difference, don't consider it. This improves stability
-                    destination[i] = source[i]
-                elif source[i] != destination[i]: change = True
-            self.cluster_centers = self.kmeans.cluster_centers_
+            parameters = {lb:(np.mean(groups[lb]), np.std(groups[lb])) for lb in self.lbss}
+            for i, a in enumerate(ass):
+                mean, std = parameters[source[i]]
+                loss = (weights[i]-mean)/(mean)
+                if loss > threshold and source[i]+1 in self.lbss:
+                    destination.append(source[i]+1)
+                    change = True
+                elif loss < -threshold and source[i]-1 in self.lbss:
+                    destination.append(source[i]-1)
+                    change = True
+                else:
+                    destination.append(source[i])
+                        
+            return change, zip(ass, source, destination)    
         
-        return change, zip(ass, source, destination)
+    def heuristic_ordered(self, nodes, threshold = 0.3, inertia = 10):
+        ass = []
+        source = []
+        destination = []
+        weights = []
+        change = False
+        groups = {lb:[] for lb in self.lbss}
+        
+        for lb in self.lbss:
+            parent = nodes['lb{}'.format(lb)]
+            for child_id in parent.child_ids:
+                ass.append(child_id)
+                source.append(lb)
+                #weights.append(float(nodes['as{}'.format(child_id)].n_worker))
+                weights.append(self.weights[child_id])
+                groups[lb].append(self.weights[child_id])
+        weights=np.array(weights)
+        #weights+=self.noise
+        
+        parameters = {lb:(np.mean(groups[lb]), np.std(groups[lb])) for lb in self.lbss}
+        
+        for i, a in enumerate(ass):
+            mean, std = parameters[source[i]]
+            loss = (weights[i]-mean)/(mean)
+            if loss > threshold and source[i]+1 in self.lbss:
+                destination.append(source[i]+1)
+                change = True
+            elif loss < -threshold and source[i]-1 in self.lbss:
+                destination.append(source[i]-1)
+                change = True
+            else:
+                destination.append(source[i])
+        return change, zip(ass, source, destination)  
 
-    def evaluate(self, nodes, method='kmeans'):
+    def evaluate(self, ts, nodes, method='kmeans'):
         change = False
         array = []
-        if DEBUG > 0:
-            print('in evaluation')
+        method = 'kmeans'
+        self.estimate(ts, nodes)
         if method == 'kmeans':            
-            change, array = self.kmeans_algorithm(nodes)
+            change, array = self.kmeans_3steps(nodes)
             return change, array
-        if method == 'heuristic':
+        if method == 'heuristic_ordered':
+            change, array = self.heuristic_ordered(nodes)
+            return change , array
+        if method == 'heuristic_combined':
+            change, array = self.heuristic_combined(nodes)
             return change , array
 
-
     def step(self, ts, nodes, debug=0):
-        t0 = time.time()  # take the first timestamp
-        change, array = self.evaluate(nodes, self.method)
-        t1 = time.time()
-        if change:
-            self.change_node(ts+t1-t0, nodes, array)
-        t2 = time.time()
-        step_delay = t2 - t0
-        #print(step_delay)
-        ts += step_delay
-        self.register_event(ts, 'cluster_update')
-        if debug > 0:
-            print('cluster updated!')
-        #self.display(nodes)
+        self.fill_buffer(ts, nodes)
+        if self.counter % self.memory == 0:
+            t0 = time.time()  # take the first timestamp
+            change, array = self.evaluate(ts, nodes, self.method)
+            t1 = time.time()
+            if change is True:
+                self.change_node(ts+t1-t0, nodes, array)
+            t2 = time.time()
+            step_delay = t2 - t0
+            ts += step_delay
+            self.display(nodes)
+            self.counter =0 
+        self.counter +=1
         self.register_event(ts + CLUSTERING_PERIOD, 'cluster_step', {'cluster_agent':self} )
         
     def change_node(self, ts, nodes, array, debug=1):
@@ -1557,12 +1695,13 @@ class ClusteringAgent(object):
                 continue
             n_worker = nodes['as{}'.format(a[0])].n_worker
             
-            for lbp in self.lbp_config:
+            for lbp in [0]:
                 lbp_id = 'lb{}'.format(lbp)
-                if a[1] in nodes[lbp_id].child_ids:
-                    nodes[lbp_id].weights[a[1]]-=n_worker
-                if a[2] in nodes[lbp_id].child_ids:
-                    nodes[lbp_id].weights[a[2]]+=n_worker
+                if False:
+                    if a[1] in nodes[lbp_id].child_ids:
+                        nodes[lbp_id].weights[a[1]]-=n_worker
+                    if a[2] in nodes[lbp_id].child_ids:
+                        nodes[lbp_id].weights[a[2]]+=n_worker
                 nodes[lbp_id].generate_bucket_table()
         
             change[a[2]][0].append(a[0])
@@ -1573,12 +1712,13 @@ class ClusteringAgent(object):
             if len(change[lb][0]) + len(change[lb][1]) == 0: continue
             ts+=1e-6
             self.register_event(ts, 'lb_change_server', {'lbs':lb, 'nodes_to_add':change[lb][0], 'nodes_to_remove':change[lb][1], 'weights':change[lb][2], 'cluster_agent':self})
-
-            
+      
     def display(self, nodes):
         for i in self.lbss:
             for j in nodes['lb{}'.format(i)].child_ids:
-                print('in cluster {}, weights = {}, n_worker = {}'.format('lb{}'.format(i), nodes['lb{}'.format(i)].weights[j], nodes['as{}'.format(j)].n_worker))
+                print('in cluster {}, weights = {}, n_worker = {}, feature = {}, n_flow {}'
+                      .format('lb{}'.format(i)
+                              , nodes['lb{}'.format(i)].weights[j], nodes['as{}'.format(j)].n_worker, self.weights[j], nodes['as{}'.format(j)].get_n_flow_on()))
             print('in cluster {}, weights = {}'.format('lb0', nodes['lb0'].weights[i]))
         print('in cluster {}, weights = {}'.format('lb{}'.format(0), nodes['lb{}'.format(0)].weights))
     

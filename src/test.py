@@ -14,6 +14,5 @@ def calcul_fair(values):
         return 1.
     
 #values = [0,5,100]
-#values = [0,7,100]
-values = [1, 3.3]
-print(calcul_fair(values))
+values = np.array([0,7,100])
+for v in values: print(v)

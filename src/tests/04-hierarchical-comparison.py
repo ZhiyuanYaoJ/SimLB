@@ -75,24 +75,15 @@ seed = 46
 methods = [
     # [method 1, method2, auto_clustering]
     #["rlb-sac", 'rlb-sac', False],
-    ["rlb-sac", 'lsq', False],
-    ["rlb-sac", 'ecmp', False],
-    ["wcmp", 'lsq', True], #Spotlight+LSQ
-    ["wcmp", 'ecmp', True], #Spotlight
-    ["ecmp", 'ecmp', False], #Spotlight
+    ["wcmp", 'lsq', False],
 ]
 
 # grid search dimensions
 n_lbps = [1]
 n_lbss = [2]
 n_ass = [6]
-n_worker = 1
-n_worker_multipliers = [2] # change this to compare server capacity variance
-fct_mus = [0.5] # change this to compare different input traffic distribution
-n_process_stage = 1 # change this to study multi-stage application (balance between CPU and I/O)
 n_episode = 1
-fct_io = 0.25
-setup_fmt = '{}lbp-{}lbs-{}as-{}worker-{}stage-exp-{:.2f}cpumu'
+setup_fmt = '{}lbp-{}lbs-{}as'
 first_episode_id = 0
 n_flow_total = int(1e4)
 #--- other options ---#
@@ -111,27 +102,22 @@ if __name__ == "__main__":  # confirms that the code is under main function
     for n_lbp in n_lbps:
         for n_lbs in n_lbss:
             for n_as in n_ass:
-                for n_worker_multiplier in n_worker_multipliers:
-                    for fct_mu in fct_mus:
-                        setup = setup_fmt.format(
-                            n_lbp, n_lbs, n_as, n_worker, n_process_stage, fct_mu)
-                        if n_process_stage > 1:
-                            setup += '-{:.2f}iomu'.format(fct_io)
-                        print(setup)
-                        cmd_preamable = 'python3 run_hierarchical.py --n-lbp {} --n-lbs {} --n-as {} --n-worker-multiplier {} --cpu-fct-mu {} --process-n-stage {} --io-fct-mu {} --n-flow {} --n-episode {} --first-episode-id {} --dump-all'.format(
-                            n_lbp, n_lbs, n_as, n_worker_multiplier, fct_mu, n_process_stage, fct_io, n_flow_total, n_episode, first_episode_id)
-                        for method in methods:
-                            method1 = method[0]
-                            method2 = method[1]
-                            auto_clustering=method[2]
-                            cmd = cmd_preamable + ' -m1 {}'.format(method1)
-                            cmd = cmd + ' -m2 {}'.format(method2)
-                            cmd = cmd + ' --auto-clustering {}'.format(auto_clustering)
-                            #cmd = cmd + ' --user-conf {}'.format(user_conf)
-                            log_folder = '/'.join([data_dir, setup, method1 + method2])
-                            tasks.append([cmd, log_folder])
-                            Path(log_folder).mkdir(parents=True, exist_ok=True)
-                            print('task : {}', cmd)
+                    setup = setup_fmt.format(n_lbp, n_lbs, n_as)
+                    print(setup)
+                    cmd_preamable = 'python3 run_hierarchical.py --n-lbp {} --n-lbs {} --n-as {} --n-flow {} --n-episode {} --first-episode-id {} --dump-all'.format(
+                        n_lbp, n_lbs, n_as, n_flow_total, n_episode, first_episode_id)
+                    for method in methods:
+                        method1 = method[0]
+                        method2 = method[1]
+                        auto_clustering=method[2]
+                        cmd = cmd_preamable + ' -m1 {}'.format(method1)
+                        cmd = cmd + ' -m2 {}'.format(method2)
+                        cmd = cmd + ' --auto-clustering'
+                        #cmd = cmd + ' --user-conf {}'.format(user_conf)
+                        log_folder = '/'.join([data_dir, setup, method1 + method2])
+                        tasks.append([cmd, log_folder])
+                        Path(log_folder).mkdir(parents=True, exist_ok=True)
+                        print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
 
     total_task = len(final_tasks)

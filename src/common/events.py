@@ -39,11 +39,13 @@ def as_periodic_log(nodes, ts, node_ids, interval):
     global event_buffer
     if node_ids is None:
         node_ids = [id for id in nodes if 'as' in id]
-    DEBUG = 2
-    if DEBUG>1:
+    if DISPLAY>0:
         print('Periodic check: {} '.format(str(datetime.now())) +'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
         #print('Get observation: {}'.format(nodes['lb0'].get_observation(ts)))
-        nodes['lb0'].get_observation(ts)
+        array = nodes['lb0'].get_observation(ts)
+        for k,v in array.items():
+            if not hasattr(v, '__iter__') : continue
+            print('{} '.format(k) +'|'.join(['{:.3f}'.format(a) for a in v]))
     event_buffer.put(Event(ts+interval, 'as_periodic_log', 'sys-admin', {'node_ids': node_ids, 'interval': interval}))
 
 def lb_update_bucket(nodes, ts, node_id):

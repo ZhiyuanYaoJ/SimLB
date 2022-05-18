@@ -2,6 +2,7 @@ from common.entities import NodeAS, NodeClient, NodeStatelessLB, NodeLB
 from policies.rule import NodeLBLSQ, NodeLBSED, NodeLBSRT, NodeLBGSQ, NodeLBActive
 from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada, NodeLBGeometry, NodeLBHermes, NodeLBRS, NodeLBProbFlow
 from policies.rl_sac import NodeRLBSAC
+from policies.rl_sac_small import NodeRLBSAC_Small
 from config.global_conf import KF_CONF, HIDDEN_DIM
 
 # ---------------------------------------------------------------------------- #
@@ -28,6 +29,15 @@ METHODS = {
         "class": NodeLBLSQ,
         "config": {
             "po2": True,
+        }
+    },
+    "wlsq": { # LSQ + power-of-2-choices
+        "class": NodeLBLSQ,
+        "config": {
+            "po2": True,
+            "weighted": True,
+            "weights": {}, # initialize weights based on number of workers
+
         }
     },
     "sed": { # Shortest Expected Delay
@@ -153,6 +163,9 @@ METHODS = {
     },
     "rlb-sac": { # SAC model
         "class": NodeRLBSAC,
+    },
+    "rlb-sac-small": { # SAC model
+        "class": NodeRLBSAC_Small,
     }
 }
 
