@@ -222,7 +222,7 @@ CP_EVENTS2ADD = [
     (
         # Periodic log
         0.5,
-        'as_periodic_log',
+        'as_periodic_log_hierarchical',
         'sys-admin',
         {
             #'node_ids': ['as{}'.format(i) for i in range(N_AS)],

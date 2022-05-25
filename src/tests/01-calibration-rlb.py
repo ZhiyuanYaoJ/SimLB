@@ -77,14 +77,14 @@ methods = [
 ]
 
 n_lb = [1]
-n_ass = [2, 4, 8, 16, 64, 128]
+n_ass = [64]
 setup_fmt = '{}lb-{}as-{}-hidden'
 
-hidden_dims = [64,128,512]
+hidden_dims = [64,128,512,1024,2048]
 rewards = [2]
 lb_periods = [0.5]
 
-n_episode = 25
+n_episode = 30
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
@@ -100,7 +100,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'first-impression-dump-all'
+    experiment_name = 'calibration'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 

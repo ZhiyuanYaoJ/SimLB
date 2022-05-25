@@ -1099,9 +1099,6 @@ class NodeLB(NodeStatelessLB):
         '''
         feature_all = self.get_observation(ts)
         feature_reward = feature_all[reward_field][self.child_ids]
-        #print('feature reward = {}'.format(["{:.3f}".format(f) for f in feature_reward]))
-        if DISPLAY>0:
-            print('Reward = {}'.format(self.reward_fn(feature_reward)))
         return self.reward_fn(feature_reward)
 
     def get_observation(self, ts):
@@ -1296,9 +1293,6 @@ class NodeLB(NodeStatelessLB):
         if RENDER: self.render(ts, nodes)
         t_delay = self.get_process_delay()
         # self.register_event(ts + t_delay, 'lb_update_bucket', {'node_id': self.id})
-        if DISPLAY > 0 and self.layer==1:
-            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
-                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
         self.calcul_reward(ts)    
         self.register_event(ts + t_delay + self.lb_period, 'lb_step', {'node_id': self.id})
 
@@ -1486,25 +1480,14 @@ class ClusteringAgent(object):
     
     def __init__(self, nodes, node_config, method=CLUSTERING_METHOD, memory = 16, debug=0):
         self.method=method
-        self.reset(node_config)
+
         self.debug = 1
-        self.counter = 0
+        self.counter = 1
         self.kmeans = None
         self.cluster_centers = None
-        self.noise = np.random.normal(scale = 0.01, size = self.n_as)
         self.memory = memory
         self.ring_buffer = RingBuffer(capacity=memory)
-
-
-    def register_event(self, ts, event, kwargs={}):
-        '''
-        @brief:
-        push an Event tuple into control plane buffer
-        '''
-        event_buffer.put(Event(ts, event, 'clustering agent',  kwargs), checkfull=False)
         
-        
-    def reset(self, node_config):
         lb_config={}
         for k in [k for k in node_config if 'lb' in k]:
             lb_config.update(node_config[k])
@@ -1518,8 +1501,24 @@ class ClusteringAgent(object):
         self.ass  = list(as_config.keys())
         self.n_as = len(self.ass)
         self.n_lbs = len(self.lbss)
+        self.noise = np.random.normal(scale = 0.01, size = self.n_as)
         self.weights = np.ones(self.n_as)
         self.inertia = {a:0 for a in self.ass}
+        
+        print(nodes['lb0'].lb_period)
+
+        self.reset()
+
+    def register_event(self, ts, event, kwargs={}):
+        '''
+        @brief:
+        push an Event tuple into control plane buffer
+        '''
+        event_buffer.put(Event(ts, event, 'clustering agent',  kwargs), checkfull=False)
+        
+        
+    def reset(self):
+
         self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
         
     def estimate(self, ts, nodes):
@@ -1536,7 +1535,7 @@ class ClusteringAgent(object):
                 features[i] = parent.get_observation(ts)[REWARD_FEATURE][i]
         self.ring_buffer.put(features)
          
-    def kmeans_3steps(self, nodes, threshold = 0.01, inertia = 10):
+    def kmeans_3steps(self, nodes, threshold = 0.01, inertia = 10): # good at the beginning but increasingly poor at the end
             ass = []
             source = []
             weights = []
@@ -1582,7 +1581,7 @@ class ClusteringAgent(object):
                 #self.cluster_centers = np.array([mean([weights[i] for i in range(len(weights)) if (self.lbss.index(destination[i]) == j)]) for j in range(len(self.lbss))])
             return change, zip(ass, source, destination)
         
-    def heuristic_combined(self, nodes, threshold = 0.3, inertia = 10):
+    def heuristic_combined(self, nodes, threshold = 0.3, inertia = 10): # 
         ass = []
         source = []
         destination = []
@@ -1619,9 +1618,9 @@ class ClusteringAgent(object):
                 else:
                     destination.append(source[i])
                         
-            return change, zip(ass, source, destination)    
+        return change, zip(ass, source, destination)    
         
-    def heuristic_ordered(self, nodes, threshold = 0.3, inertia = 10):
+    def heuristic_ordered(self, nodes, threshold = 0.3, inertia = 10): #poor at the beginning but increasingly good at the end
         ass = []
         source = []
         destination = []
@@ -1658,8 +1657,9 @@ class ClusteringAgent(object):
     def evaluate(self, ts, nodes, method='kmeans'):
         change = False
         array = []
-        method = 'kmeans'
+        method = 'heuristic_combined'
         self.estimate(ts, nodes)
+        self.display(nodes)
         if method == 'kmeans':            
             change, array = self.kmeans_3steps(nodes)
             return change, array
@@ -1681,7 +1681,6 @@ class ClusteringAgent(object):
             t2 = time.time()
             step_delay = t2 - t0
             ts += step_delay
-            self.display(nodes)
             self.counter =0 
         self.counter +=1
         self.register_event(ts + CLUSTERING_PERIOD, 'cluster_step', {'cluster_agent':self} )
@@ -1716,9 +1715,9 @@ class ClusteringAgent(object):
     def display(self, nodes):
         for i in self.lbss:
             for j in nodes['lb{}'.format(i)].child_ids:
-                print('in cluster {}, weights = {}, n_worker = {}, feature = {}, n_flow {}'
+                print('in cluster {}, id = {}, n_worker = {}, feature = {}, n_flow {}'
                       .format('lb{}'.format(i)
-                              , nodes['lb{}'.format(i)].weights[j], nodes['as{}'.format(j)].n_worker, self.weights[j], nodes['as{}'.format(j)].get_n_flow_on()))
+                              , j, nodes['as{}'.format(j)].n_worker, self.weights[j], nodes['as{}'.format(j)].get_n_flow_on()))
             print('in cluster {}, weights = {}'.format('lb0', nodes['lb0'].weights[i]))
         print('in cluster {}, weights = {}'.format('lb{}'.format(0), nodes['lb{}'.format(0)].weights))
     

@@ -11,7 +11,6 @@ from functools import wraps
 i=0
 t0=0
 sum=0
-tab = [0,0,0,0,0,0]
 def timeit(func):
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
@@ -21,12 +20,10 @@ def timeit(func):
         total_time = end_time - start_time
         #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
         global t0, i
-        if total_time>0.001:
+        if total_time>0.0:
             t0 += total_time
             i +=1
-            print('Result {}'.format(t0))
-        #if i%10 == 0:
-            #print(t0)
+            print('Result {}'.format(total_time))
         return result
     return timeit_wrapper
 
@@ -100,7 +97,6 @@ class NodeRLBSAC(NodeLB):
             self.active_as, [self.weights[as_id_] for as_id_ in self.active_as])
         return as_id[0]
     
-    
     def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
@@ -127,7 +123,6 @@ class NodeRLBSAC(NodeLB):
             
         return child_id, bucket_id
 
-
     def get_state(self, ts, nodes=None):
         '''
         @brief:
@@ -142,7 +137,7 @@ class NodeRLBSAC(NodeLB):
         t_rest_all = None    
         
         return (self.child_ids, feature_lb, feature_as, t_rest_all) # gt set to rest time
-   
+
     def generate_weight(self, state):
         '''
         @brief:
@@ -167,7 +162,6 @@ class NodeRLBSAC(NodeLB):
             4. provide next action for env.
         '''
         t0 = time.time()  # take the first timestamp
-
         # step 0: get state
         state = self.get_state(ts, nodes=nodes)
 
@@ -206,13 +200,10 @@ class NodeRLBSAC(NodeLB):
                             'lb_step', {'node_id': self.id})
         if RENDER:
             self.render(ts, state)
+
         if DISPLAY>0 and self.layer==1:
-            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
-                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
-
-
-        print(">> ({:.3f}s) in {}: new weights {}".format(
-            ts, self.__class__, self.weights[self.child_ids]))
+            print(">> ({:.3f}s) in {}: new weights {}".format(
+                ts, self.__class__, self.weights[self.child_ids]))
 
     def train(self):
         '''

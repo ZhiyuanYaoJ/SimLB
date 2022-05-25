@@ -38,7 +38,7 @@ def timeit(func):
         total_time = end_time - start_time
         #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
         global t0, i
-        if total_time>0.001:
+        if total_time>0.0001:
             t0 += total_time
             i +=1
             print('Result {}'.format(t0))
@@ -193,12 +193,18 @@ class SoftQNetwork(nn.Module):
             obs_lb, obs_as[:n_batch],
             feature_as_bn_buffer.reshape(n_batch, -1), action
         ], 1)  # concat all features and actions into #n_batch rows
-
+        t1 = time.time()
+        # print(torch.numel(x))
         x = F.elu(self.linear1(x))
         x = self.ln1(x)
         # x=F.elu(self.linear2(x))
         # x=F.elu(self.linear3(x))
         x = self.linear4(x)
+        t2 = time.time()-t1
+        
+        
+        global t0
+        # print(t2)
         return x
 
 

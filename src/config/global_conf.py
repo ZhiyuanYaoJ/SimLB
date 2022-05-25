@@ -71,7 +71,7 @@ LB_BUCKET_SIZE = 65536
 # ------------------------------------ Clustering----------------------------- #
 
 HIERARCHICAL = False
-CLUSTERING_PERIOD = 0.1
+CLUSTERING_PERIOD = 0.5
 CLUSTERING_METHOD = 'kmeans'
 
 # ---------------------------------- Client ---------------------------------- #
@@ -148,10 +148,10 @@ EPISODE_LEN_INC = 5  # incremental episode length | previously as `args.t_inc`
 
 # ---------------------------------------------------------------------------- #
 #                                  Environment                                 #
+DISPLAY = 1
 # ---------------------------------------------------------------------------- #
 
 DEBUG = 0  # level of debug mode 0 < 1 < 2
-DISPLAY = 1
 RENDER = False  # set to False if nothing need to be rendered into a log file every `step`
 RENDER_RECEIVE = False  # set to False if nothing need to be rendered into a log file whenever receiving a `flow`
 
@@ -337,6 +337,8 @@ parser.add_argument('--user-conf', action='store', type=int, default=-1, dest='u
 parser.add_argument('--dump-all', action='store_true', default=False, dest='dump_all_flow',
                     help='Whether dump all the flows in a file')
 
+parser.add_argument('--display', action='store_true', default=False, dest='display',
+                    help='Whether dump all the flows in a file')
 
 # ---------------------------------- Traffic --------------------------------- #
 

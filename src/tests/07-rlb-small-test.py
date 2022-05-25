@@ -5,7 +5,7 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 2
+n_thread_max = 48
 counter = None
 query_rate_list = [0.9]
 
@@ -78,14 +78,13 @@ methods = [
 ]
 
 n_lb = [1]
-n_ass = [2,64]
-setup_fmt = '{}lb-{}as'
+n_ass = [4,8,64, 128]
+setup_fmt = '{}lb-{}as-{}-hidden'
 
-hidden_dims = [64, 512]
-lb_periods = [0.5]
+hidden_dims = [512]
 max_n_childs = [2]
 
-n_episode = 10
+n_episode = 20
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
@@ -108,19 +107,17 @@ if __name__ == "__main__":  # confirms that the code is under main function
     for n_lb in n_lb:
         for n_as in n_ass:
             for hidden_dim in hidden_dims:
-                for max_n_child in max_n_childs:
-                    for lb_period in lb_periods:
-                        setup = setup_fmt.format(
-                            n_lb, n_as)
-                        print(setup)
-                        cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --hidden-dim {} --lb-period {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
-                            n_lb, n_as, hidden_dim, lb_period, max_n_child, t_episode, t_episode_inc, n_episode)                        
-                        for method in methods:
-                            cmd = cmd_preamable + ' -m {}'.format(method)
-                            log_folder = '/'.join([data_dir, setup, method])
-                            tasks.append([cmd, log_folder])
-                            Path(log_folder).mkdir(parents=True, exist_ok=True)
-                            print('task : {}', cmd)
+                setup = setup_fmt.format(
+                    n_lb, n_as, hidden_dim)
+                print(setup)
+                cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --hidden-dim {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
+                    n_lb, n_as, hidden_dim, n_as, t_episode, t_episode_inc, n_episode)                        
+                for method in methods:
+                    cmd = cmd_preamable + ' -m {}'.format(method)
+                    log_folder = '/'.join([data_dir, setup, method])
+                    tasks.append([cmd, log_folder])
+                    Path(log_folder).mkdir(parents=True, exist_ok=True)
+                    print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
     total_task = len(final_tasks)
     for t in final_tasks:

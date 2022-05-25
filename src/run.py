@@ -40,6 +40,11 @@ def init_global_variables(args):
 
     for i in NODE_CONFIG['clt'].keys():
         NODE_CONFIG['clt'][i].update({'app_config': app_config}),
+    
+    for i in NODE_CONFIG.keys():
+        if 'lb' not in i: continue
+        for j in NODE_CONFIG[i].keys():
+            NODE_CONFIG[i][j].update({'max_n_child': args.max_n_child}),
         
     # RLB configuration
     if 'rlb-sac' in args.method:

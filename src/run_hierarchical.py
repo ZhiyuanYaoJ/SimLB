@@ -39,9 +39,14 @@ def init_global_variables(args):
 
     for i in NODE_CONFIG['clt'].keys():
         NODE_CONFIG['clt'][i].update({'app_config': app_config}),
+    
+    for i in NODE_CONFIG.keys():
+        if 'lb' not in i: continue
+        for j in NODE_CONFIG[i].keys():
+            NODE_CONFIG[i][j].update({'max_n_child': args.max_n_child}),
         
     # RLB configuration
-    if 'lbrlb-sac' in args.method1:
+    if 'rlb-sac' in args.method1:
         hidden_dim = args.hidden_dim
         lb_period = args.lb_period
         reward_option = args.reward_option
@@ -54,11 +59,12 @@ def init_global_variables(args):
                         'AUTO_ENTROPY': True,
                         'model_path': 'models2/sac_v2',
                         }
-        for i in NODE_CONFIG['lb-rlb-sac'].keys():
-            NODE_CONFIG['lb-rlb-sac'][i].update({'SAC_training_confs_': SAC_training_conf,
+        for i in NODE_CONFIG['lb-' + args.method1].keys():
+            NODE_CONFIG['lb-' + args.method1][i].update({'SAC_training_confs_': SAC_training_conf,
                                                 'lb_period' : args.lb_period,
+                                                'reward_option' : args.reward_option,
+                                                'max_n_child': args.max_n_child,
                                                 'reward_option' : args.reward_option}),
-
     # update log folder
     global LOG_FOLDER 
     LOG_FOLDER= args.log_folder

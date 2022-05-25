@@ -27,6 +27,7 @@ def generate_node_config_tier4(
     n_worker_baseline=N_WORKER_BASELINE, 
     n_worker2change=N_WORKER2CHANGE, 
     n_worker_multiplier=N_WORKER_MULTIPLIER,
+    n_worker_multiplier_distribution=N_WORKER_MULTIPLIER_DISTRIBUTION,
     as_mp_level=AS_MULTIPROCESS_LEVEL,
     lb_bucket_size=LB_BUCKET_SIZE,
     log_folder=LOG_FOLDER,
@@ -68,6 +69,11 @@ def generate_node_config_tier4(
 
     #for i in range(n_worker2change):  # update half as configuration
         #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
+    for i in as_config:
+        as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})
+    as_config[0].update({'n_worker': 1})     
+    as_config[1].update({'n_worker': 2})
+    
     '''  
     as_config[0].update({'n_worker': 4})     
     as_config[1].update({'n_worker': 8})
@@ -100,7 +106,6 @@ def generate_node_config_tier4(
     #            lb_config[i].update(configuration['METHODS'][lb_method]['config'])
     #    print(configuration['METHODS'][lb_method]['config'])
     #    print(lb_config[0])
-    
     return {
         'clt': clt_config,
         'er': er_config,

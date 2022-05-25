@@ -24,7 +24,7 @@ def timeit(func):
         if total_time>0.001:
             t0 += total_time
             i +=1
-            print('Result {}'.format(t0))
+            print('Result {}'.format(total_time))
         #if i%10 == 0:
             #print(t0)
         return result
@@ -138,7 +138,7 @@ class NodeRLBSAC_Small(NodeLB):
         t_rest_all = None    
         
         return ([0], feature_lb, feature_as, t_rest_all) # gt set to rest time
-   
+
     def generate_weight(self, state, child_id = None):
         '''
         @brief:
@@ -207,14 +207,10 @@ class NodeRLBSAC_Small(NodeLB):
                             'lb_step', {'node_id': self.id})
         if RENDER:
             self.render(ts, state)
+
         if DISPLAY>0 and self.layer==1:
-            print('{:<30s}'.format('Actual On Flow:')+' |'.join(
-                [' {:> 7.0f}'.format(nodes['{}{}'.format(self.child_prefix, i)].get_n_flow_on()) for i in self.child_ids]))
-
-
-        print(">> ({:.3f}s) in {}: new weights {}".format(
-            ts, self.__class__, self.weights[self.child_ids]))
-        
+            print(">> ({:.3f}s) in {}: new weights {}".format(
+                ts, self.__class__, self.weights[self.child_ids]))
         
     def train(self):
         '''

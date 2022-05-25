@@ -59,67 +59,63 @@ def add_rates(tasks, rates):
         for rate in rates:
             log_folder = os.path.join(foldername, 'rate{:.3f}'.format(rate))
             Path(log_folder).mkdir(parents=False, exist_ok=True)
-            print(cmd_preamable)
-            print('')
             cmd = cmd_preamable + \
-                ' --lambda {0:.3f} -w {1} > {1}/test.log'.format(
+               ' --lambda {0:.3f} -w {1} > {1}/test.log'.format(
                     rate, log_folder)
-            final_task.append((cmd, log_folder))
 
+            final_task.append((cmd, log_folder))
 
     return final_task
 
 
-seed = 45
+seed = 46
 
 methods = [
-    "sed",
-    'lsq',
-    'wcmp',
-    'rlb-sac',
+    ["lsq", 'lsq', True],
 ]
-
-
-n_lb = [1]
-n_ass = [8]
-setup_fmt = '{}lb-{}as'
 
 n_episode = 10
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
 
-
-#--- other options ---#
-# add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
-# add ' --lb-period {}'.format(lb_period) to change bucket size
-
+# grid search dimensions
+n_lbps = [1]
+n_lbss = [2]
+n_ass = [8]
+setup_fmt = '{}lbp-{}lbs-{}as'
 
 if __name__ == "__main__":  # confirms that the code is under main function
     tasks = []
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'find-features'
+    experiment_name = 'clustering'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
-
-    for n_lb in n_lb:
-        for n_as in n_ass:
-            setup = setup_fmt.format(
-                n_lb, n_as)
-            print(setup)
-            cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
-                n_lb, n_as, n_as, t_episode, t_episode_inc, n_episode)                        
-            for method in methods:
-                cmd = cmd_preamable + ' -m {}'.format(method)
-                log_folder = '/'.join([data_dir, setup, method])
-                tasks.append([cmd, log_folder])
-                Path(log_folder).mkdir(parents=True, exist_ok=True)
-                print('task : {}', cmd)
+    for n_lbp in n_lbps:
+        for n_lbs in n_lbss:
+            for n_as in n_ass:
+                    setup = setup_fmt.format(n_lbp, n_lbs, n_as)
+                    print(setup)
+                    cmd_preamable = 'python3 run_hierarchical.py --n-lbp {} --n-lbs {} --n-as {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
+                        n_lbp, n_lbs, n_as, n_as, t_episode, t_episode_inc, n_episode)
+                    for method in methods:
+                        method1 = method[0]
+                        method2 = method[1]
+                        auto_clustering=method[2]
+                        cmd = cmd_preamable + ' -m1 {}'.format(method1)
+                        cmd = cmd + ' -m2 {}'.format(method2)
+                        cmd = cmd + ' --auto-clustering'
+                        #cmd = cmd + ' --user-conf {}'.format(user_conf)
+                        log_folder = '/'.join([data_dir, setup, method1 + method2])
+                        tasks.append([cmd, log_folder])
+                        Path(log_folder).mkdir(parents=True, exist_ok=True)
+                        print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
+
     total_task = len(final_tasks)
-    for t in final_tasks:
-        print(t)
+    # for t in final_tasks:
+    #     print(t)
     print('total tasks = {}'.format(total_task))
     pool_handler(tuple(final_tasks))

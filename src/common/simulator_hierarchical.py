@@ -60,6 +60,8 @@ class Simulator:
         else:
             for node in self.nodes.values():
                 node.reset()
+            if self.auto_clustering == True: 
+                self.clustering_agent.reset()
 
         
 
