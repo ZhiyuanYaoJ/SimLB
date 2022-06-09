@@ -1,2 +1,4 @@
-for i in range (5) if (i == 2):
-    print('hello')
+import numpy as np
+
+print(np.exp(0.02))
+print(np.exp(-0.01))

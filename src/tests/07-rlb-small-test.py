@@ -5,7 +5,7 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 48
+n_thread_max = 2
 counter = None
 query_rate_list = [0.9]
 
@@ -75,16 +75,18 @@ seed = 45
 methods = [
     "rlb-sac", # SAC model
     "rlb-sac-small", # SAC model
+    "rlb-sac-tiny", # SAC model
+    "lsq", # SAC model
 ]
 
 n_lb = [1]
-n_ass = [4,8,64, 128]
+n_ass = [8, 16, 32]
 setup_fmt = '{}lb-{}as-{}-hidden'
 
 hidden_dims = [512]
 max_n_childs = [2]
 
-n_episode = 20
+n_episode = 15
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
@@ -100,7 +102,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'rlb-small-test'
+    experiment_name = 'rlb-small-test-bis'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 

@@ -9,6 +9,7 @@ from policies.model.sac_v2 import *
 
 from functools import wraps
 i=0
+j=0
 t0=0
 def timeit(func):
     @wraps(func)
@@ -41,7 +42,7 @@ SAC_training_confs = {'hidden_dim': HIDDEN_DIM,
 
 DETERMINISTIC = False
 
-class NodeRLBSAC_Small(NodeLB):
+class NodeRLBSAC_Tiny(NodeLB):
     '''
     @brief:
         RL solution for simulated load balancer with SAC model.
@@ -120,6 +121,22 @@ class NodeRLBSAC_Small(NodeLB):
         return child_id, bucket_id
 
 
+    def calcul_reward(self, ts, reward_field=REWARD_FEATURE):
+        '''
+        @brief: calculate reward using a given REWARD FEATURE
+        '''
+        feature_all = self.get_observation(ts)
+        feature_reward = feature_all[reward_field][self.child_ids]
+        size = len(feature_reward)
+        feature_reward = np.array(feature_reward)
+        A = np.ones(size)-np.eye(size)
+        B = 1/(size-1) * feature_reward @ A
+        reward = {}
+        for i,a in enumerate(self.child_ids):
+            reward[a] = self.reward_fn([feature_reward[i], B[i]])
+
+        return reward
+    
     def get_state(self, ts, nodes=None, child_id = None):
         '''
         @brief:
@@ -135,8 +152,7 @@ class NodeRLBSAC_Small(NodeLB):
         if False:
             t_rest_all = np.zeros(self.max_n_child)
             t_rest_all[self.child_ids] = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts) for i in self.child_ids]
-        t_rest_all = None    
-        
+        t_rest_all = None
         return ([0], feature_lb, feature_as, t_rest_all) # gt set to rest time
 
     def generate_weight(self, state, child_id = None):
@@ -153,6 +169,7 @@ class NodeRLBSAC_Small(NodeLB):
         self.weights[child_id] = self.alpha*new_weights+(1-self.alpha)*self.weights[child_id]
         return time.time() - t0
 
+
     def step(self, ts, nodes=None):
         '''
         @brief:
@@ -163,7 +180,6 @@ class NodeRLBSAC_Small(NodeLB):
             4. provide next action for env.
         '''
         t0 = time.time()  # take the first timestamp
-
         # step 0: get state
         state = {}
         for i in self.child_ids:
@@ -176,7 +192,7 @@ class NodeRLBSAC_Small(NodeLB):
         if self.last_state:  # ignore the first step
             for i in self.child_ids:
                 self.replay_buffer.push(
-                    self.last_state[i], [self.last_action[i]], reward, state[i])
+                    self.last_state[i], [self.last_action[i]], reward[i], state[i])
 
         # step 3
         t1 = time.time()  # take the second timestamp
@@ -209,6 +225,8 @@ class NodeRLBSAC_Small(NodeLB):
             self.render(ts, state)
 
         if DISPLAY>0 and self.layer==1:
+            # print(">> ({:.3f}s) in {}: new weights {}".format(
+                # ts, self.__class__, self.weights[self.child_ids]))
             print("new weights {}".format(self.weights[self.child_ids]))
             print(' ')
 

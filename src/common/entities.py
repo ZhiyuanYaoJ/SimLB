@@ -29,6 +29,11 @@ t0=0
 i = 0
 from functools import wraps
 def timeit(func):
+    '''
+    @brief:
+        This decorator helps to time the program
+        add @timeit before function to print computation time
+    '''
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()
@@ -333,7 +338,10 @@ class PriorityQueue:
         self.queue = []
 
 class RingBuffer:
-    """ class that implements a not-yet-full buffer """
+    """
+    @brief:
+        A ring buffer used to compute the average of the last N samples of feature
+    """
     def __init__(self,capacity):
         self.queue = [0]*capacity
         self.size = 0
@@ -350,13 +358,7 @@ class RingBuffer:
         if self.size < self.capacity:
             return None
         else:
-            return np.mean(self.queue, axis = 0)
-
-    def std(self):
-        if self.size < self.capacity:
-            return -1
-        else:
-            return np.std(self.queue)        
+            return np.mean(self.queue, axis = 0)     
 
 class ReservoirSamplingBuffer(object):
     '''
@@ -426,6 +428,7 @@ class OtherSamplingBuffer(object):
     '''
     @brief:
         A simple implementation of reservoir sampling buffer which consists of a list of (ts, value)
+        In addition to the reservoir sampling buffer, it has the function sample() which samples values from a dictionary
     '''
     def __init__(self, size, dict=None, p=1., fresh_base=0.9):
         self.fresh_base = fresh_base
@@ -455,27 +458,23 @@ class OtherSamplingBuffer(object):
         self.values[index] = value   
 
     def sample(self, ts, dict, child_id = None):
-
+        '''
+        @brief:
+            samples elements from a dictionary. Samples are values from the load balancer on the child which has child_id
+        @params:
+            ts: current timestamp to compare freshness
+        '''
         if len(dict) == 0:
             self.tss = np.zeros(self.size) # timestamps
             self.values = np.zeros(self.size)  # values
             return
-        method = 1
-        k = min(self.size, len(dict))
-        if method == 1:
-            set = [v[0] for _,v in dict.items() if v[2] == child_id]
-            if len(set)==0: return
-            self.tss = np.random.choice(set, size=k)
-            self.values = ts - self.tss
         
-        if method == 2:
-            set = [v[0] for _,v in dict.items() if v[2] == child_id]
-            if len(set)==0: return
-            set = sorted(set)[:k]
-            self.values = [ts-tss_ for tss_ in self.tss]
+        k = min(self.size, len(dict))
+        set = [v[0] for _,v in dict.items() if v[2] == child_id]
+        if len(set)==0: return
+        self.tss = np.random.choice(set, size=k)
+        self.values = ts - self.tss
             
- 
-
     def get_value_variance(self):
         return self.values.std()**2
 
@@ -974,7 +973,7 @@ class NodeLB(NodeStatelessLB):
         A basic load balancing that does (weighted) ECMP
     '''
 
-    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', layer=1, weights2= None, lb_period=LB_PERIOD, debug=0):
+    def __init__(self, id, child_ids, bucket_size=LB_BUCKET_SIZE, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', layer=1, weights2= None, lb_period=LB_PERIOD, debug=0):
         '''
         @params:
             child_ids: a list of id number of AS which is currently active
@@ -1657,7 +1656,7 @@ class ClusteringAgent(object):
     def evaluate(self, ts, nodes, method='kmeans'):
         change = False
         array = []
-        method = 'heuristic_combined'
+        method = 'heuristic_ordered'
         self.estimate(ts, nodes)
         self.display(nodes)
         if method == 'kmeans':            

@@ -23,7 +23,7 @@ def timeit(func):
         if total_time>0.0:
             t0 += total_time
             i +=1
-            print('Result {}'.format(total_time))
+            print('Result {}'.format(t0))
         return result
     return timeit_wrapper
 
@@ -92,11 +92,6 @@ class NodeRLBSAC(NodeLB):
             model_path = SAC_training_confs['model_path']
             self.sac_trainer.load_model(model_path)
 
-    def choose_as(self):
-        as_id = random.choices(
-            self.active_as, [self.weights[as_id_] for as_id_ in self.active_as])
-        return as_id[0]
-    
     def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(

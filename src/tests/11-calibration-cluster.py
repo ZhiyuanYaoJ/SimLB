@@ -5,7 +5,7 @@ from multiprocessing import Value, Pool
 import time
 from pathlib import Path
 
-n_thread_max = 4
+n_thread_max = 2
 counter = None
 query_rate_list = [0.9]
 
@@ -59,65 +59,80 @@ def add_rates(tasks, rates):
         for rate in rates:
             log_folder = os.path.join(foldername, 'rate{:.3f}'.format(rate))
             Path(log_folder).mkdir(parents=False, exist_ok=True)
-            print(cmd_preamable)
-            print('')
             cmd = cmd_preamable + \
-                ' --lambda {0:.3f} -w {1} > {1}/test.log'.format(
+               ' --lambda {0:.3f} -w {1} > {1}/test.log'.format(
                     rate, log_folder)
-            final_task.append((cmd, log_folder))
 
+            final_task.append((cmd, log_folder))
 
     return final_task
 
 
-seed = 45
+seed = 2
 
-methods = [
-    "rlb-sac", # SAC model
-]
-
-n_lb = [1]
-n_ass = [4]
-max_n_childs = [4,8,32]
-setup_fmt = '{}lb-{}as-{}max'
-
-n_episode = 10
+n_episode = 20
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
-
-
-#--- other options ---#
-# add ' --lb-bucket-size {}'.format(bucket_size) to change bucket size
-# add ' --lb-period {}'.format(lb_period) to change bucket size
-
 
 if __name__ == "__main__":  # confirms that the code is under main function
     tasks = []
     counter = Value('i', 0)
     T0 = time.time()
-
-    experiment_name = 'first-impression-dump-all'
+    experiment_name = 'calibration-cluster'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
+    
+    methods = [
+        ["rlb-sac", 'lsq', False],
+        ["rlb-sac", 'lsq', True],
+    ]
+    configs = [
+        # clustering step, memory and threshold, capacity
+    ]
+    
+    setup_fmt = '{}lbp-{}lbs-{}as'
 
-    for n_lb in n_lb:
-        for n_as in n_ass:
-            for max_n_child in max_n_childs:
-                setup = setup_fmt.format(
-                    n_lb, n_as, max_n_child)
-                print(setup)
-                cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
-                    n_lb, n_as, max_n_child, t_episode, t_episode_inc, n_episode)                        
-                for method in methods:
-                    cmd = cmd_preamable + ' -m {}'.format(method)
-                    log_folder = '/'.join([data_dir, setup, method])
-                    tasks.append([cmd, log_folder])
-                    Path(log_folder).mkdir(parents=True, exist_ok=True)
-                    print('task : {}', cmd)
+    for config in configs:
+        n_lbp, n_lbs, n_as = (1,2,8)
+        setup = setup_fmt.format(n_lbp, n_lbs, n_as)
+        print(setup)
+        cmd_preamable = 'python3 run_hierarchical.py --n-lbp {} --n-lbs {} --n-as {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
+            n_lbp, n_lbs, n_as, n_as, t_episode, t_episode_inc, n_episode)
+        for method in methods:
+            method1 = method[0]
+            method2 = method[1]
+            cmd = cmd_preamable + ' -m1 {}'.format(method1)
+            cmd = cmd + ' -m2 {}'.format(method2)
+            if method[2] == True:
+                cmd = cmd + ' --auto-clustering'
+            log_folder = '/'.join([data_dir, setup, method1 + method2])
+            tasks.append([cmd, log_folder])
+            Path(log_folder).mkdir(parents=True, exist_ok=True)
+            print('task : {}', cmd)
+            
+    methods = [
+    ]
+    configs = [
+        (1,16),
+        (1,8),
+    ]
+    setup_fmt = '{}lb-{}as'
+
+    for config in configs:
+        n_lb, n_as = config
+        setup = setup_fmt.format(n_lb, n_as)
+        print(setup)
+        cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
+            n_lb, n_as, n_as, t_episode, t_episode_inc, n_episode)
+        for method in methods:
+            cmd = cmd_preamable + ' -m {}'.format(method)
+            log_folder = '/'.join([data_dir, setup, method])
+            tasks.append([cmd, log_folder])
+            Path(log_folder).mkdir(parents=True, exist_ok=True)
+            print('task : {}', cmd)
+            
     final_tasks = add_rates(tasks, query_rate_list)
     total_task = len(final_tasks)
-    for t in final_tasks:
-        print(t)
     print('total tasks = {}'.format(total_task))
     pool_handler(tuple(final_tasks))

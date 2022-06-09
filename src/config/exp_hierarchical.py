@@ -92,17 +92,28 @@ def generate_node_config_hierarchical(
 
     #for i in range(n_worker2change):  # update half as configuration
         #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
-    for i in as_config:
-        as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})        
-    '''
+    #for i in as_config:
+        #as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})        
+    
     as_config[0].update({'n_worker': 1})     
-    as_config[1].update({'n_worker': 2})     
-    as_config[2].update({'n_worker': 2})     
-    as_config[3].update({'n_worker': 1})     
-    as_config[4].update({'n_worker': 1})     
-    as_config[5].update({'n_worker': 1})     
-    '''
-        
+    as_config[1].update({'n_worker': 1})     
+    as_config[2].update({'n_worker': 1})     
+    as_config[3].update({'n_worker': 1})       
+    as_config[4].update({'n_worker': 2})     
+    as_config[5].update({'n_worker': 2})     
+    as_config[6].update({'n_worker': 2})     
+    as_config[7].update({'n_worker': 2})     
+    try:
+        as_config[8].update({'n_worker': 1})     
+        as_config[9].update({'n_worker': 1})     
+        as_config[10].update({'n_worker': 1})     
+        as_config[11].update({'n_worker': 1})       
+        as_config[12].update({'n_worker': 2})     
+        as_config[13].update({'n_worker': 2})     
+        as_config[14].update({'n_worker': 2})     
+        as_config[15].update({'n_worker': 2})   
+    except:
+        pass 
         
     # For secondary LB
     if 'config' in METHODS[lbs_method].keys():

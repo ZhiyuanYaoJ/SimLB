@@ -40,17 +40,17 @@ def as_periodic_log(nodes, ts, node_ids, interval):
     if node_ids is None:
         node_ids = [id for id in nodes if 'as' in id]
     if DISPLAY>0:
-        print('Periodic check: {} '.format(str(datetime.now())) +'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
-        print('{:<30s}'.format('Actual On Flow:')+' |'.join(
-        [' {:> 7.0f}'.format(nodes['{}{}'.format(nodes['lb0'].child_prefix, i)].get_n_flow_on()) for i in nodes['lb0'].child_ids]))
+        # print('Periodic check: {} '.format(str(datetime.now())) +'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
+        # print('{:<30s}'.format('Actual On Flow:')+' |'.join(
+        # [' {:> 7.0f}'.format(nodes['{}{}'.format(nodes['lb0'].child_prefix, i)].get_n_flow_on()) for i in nodes['lb0'].child_ids]))
         #print('Get observation: {}'.format(nodes['lb0'].get_observation(ts)))
         array = nodes['lb0'].get_observation(ts)
         feature_reward = array[REWARD_FEATURE][nodes['lb0'].child_ids]
         print('Reward = {}'.format(nodes['lb0'].reward_fn(feature_reward)))        
         
-        for k,v in array.items():
-            if not hasattr(v, '__iter__') : continue
-            print('{} '.format(k) +'|'.join(['{:.3f}'.format(a) for a in v]))
+        # for k,v in array.items():
+        #     if not hasattr(v, '__iter__') : continue
+        #     print('{} '.format(k) +'|'.join(['{:.3f}'.format(a) for a in v]))
     event_buffer.put(Event(ts+interval, 'as_periodic_log', 'sys-admin', {'node_ids': node_ids, 'interval': interval}))
 
 def as_periodic_log_hierarchical(nodes, ts, node_ids, interval):
@@ -59,6 +59,12 @@ def as_periodic_log_hierarchical(nodes, ts, node_ids, interval):
         node_ids = [id for id in nodes if 'as' in id]
     if DISPLAY>0:
         #print(' Periodic check: {} '.format(str(datetime.now())) +'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
+        
+        id = 'lb0'
+        array = nodes[id].get_observation(ts)
+        feature_reward = array[REWARD_FEATURE][nodes[id].child_ids]
+        print('{} Reward = {}'.format(id, nodes[id].reward_fn(feature_reward)))       
+        
         lb_ids = [id for id in nodes if 'lb' in id and nodes[id].layer == 1]
         for id in lb_ids:
             print('{:<30s}'.format('{} Actual On Flow:').format(id)+' |'.join(
@@ -66,16 +72,15 @@ def as_periodic_log_hierarchical(nodes, ts, node_ids, interval):
             #print('Get observation: {}'.format(nodes['lb0'].get_observation(ts)))
             array = nodes[id].get_observation(ts)
             feature_reward = array[REWARD_FEATURE][nodes[id].child_ids]
+            try: reward_array += np.array(array[REWARD_FEATURE])
+            except: reward_array = np.array(array[REWARD_FEATURE])                
             print('{} Reward = {}'.format(id, nodes[id].reward_fn(feature_reward)))        
             for k,v in array.items():
                 if not hasattr(v, '__iter__') : continue
                 if k not in ['res_fct_avg_disc', 'n_flow_on']: continue
                 print('{} {} '.format(id, k) +'|'.join(['{:.3f}'.format(a) for a in v]))
-                
-        id = 'lb0'
-        array = nodes[id].get_observation(ts)
-        feature_reward = array[REWARD_FEATURE][nodes[id].child_ids]
-        print('{} Reward = {}'.format(id, nodes[id].reward_fn(feature_reward)))        
+        print('Total Reward = {}'.format(nodes['lb0'].reward_fn(reward_array)))       
+         
     event_buffer.put(Event(ts+interval, 'as_periodic_log_hierarchical', 'sys-admin', {'node_ids': node_ids, 'interval': interval}))
 
 def lb_update_bucket(nodes, ts, node_id):

@@ -77,15 +77,26 @@ methods = [
 ]
 
 n_lb = [1]
-n_ass = [2]
+n_ass = [8]
 setup_fmt = '{}lb-{}as-reward-{}'
 
-hidden_dims = [512]
-rewards = [2,3]
-lb_periods = [0.5]
-max_n_childs = [2]
+rewards = [
+    'jain2',
+    'product',
+    'var',
+    'var_exp',
+    'var_plus_exp',
+    'var_plus_log',
+    'std_plus_log',
+    'var_log',
+    'max',
+    'max_exp',
+    'max_log',
+    'var_2_norm',
+    'cv',
+    ]
 
-n_episode = 10
+n_episode = 15
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
@@ -101,25 +112,24 @@ if __name__ == "__main__":  # confirms that the code is under main function
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'fair-efficient-test'
+    experiment_name = 'reward-test'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
     for n_lb in n_lb:
         for n_as in n_ass:
-            for max_n_child in max_n_childs:
-                for reward in rewards:
-                        setup = setup_fmt.format(
-                            n_lb, n_as, reward)
-                        print(setup)
-                        cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --max-n-child {} --reward-option {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
-                            n_lb, n_as, n_as, reward, t_episode, t_episode_inc, n_episode)                        
-                        for method in methods:
-                            cmd = cmd_preamable + ' -m {}'.format(method)
-                            log_folder = '/'.join([data_dir, setup, method])
-                            tasks.append([cmd, log_folder])
-                            Path(log_folder).mkdir(parents=True, exist_ok=True)
-                            print('task : {}', cmd)
+            for reward in rewards:
+                    setup = setup_fmt.format(
+                        n_lb, n_as, reward)
+                    print(setup)
+                    cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --max-n-child {} --reward-option {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
+                        n_lb, n_as, n_as, reward, t_episode, t_episode_inc, n_episode)                        
+                    for method in methods:
+                        cmd = cmd_preamable + ' -m {}'.format(method)
+                        log_folder = '/'.join([data_dir, setup, method])
+                        tasks.append([cmd, log_folder])
+                        Path(log_folder).mkdir(parents=True, exist_ok=True)
+                        print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
     total_task = len(final_tasks)
     for t in final_tasks:

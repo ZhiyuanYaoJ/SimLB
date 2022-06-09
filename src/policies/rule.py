@@ -1,14 +1,14 @@
 from ast import Raise
 import random
 import time
-from config.global_conf import ACTION_DIM, RENDER, LB_PERIOD, B_OFFSET, RENDER_RECEIVE, HEURISTIC_ALPHA
+from config.global_conf import ACTION_DIM, RENDER, LB_PERIOD, B_OFFSET, RENDER_RECEIVE, HEURISTIC_ALPHA, REWARD_OPTION
 from config.user_conf import *
 from common.entities import NodeLB
 import numpy as np
 
 class NodeLBLSQ(NodeLB):
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, layer=1, weights2= None, weighted = False, b_offset=B_OFFSET, lb_period = LB_PERIOD, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', po2=False, layer=1, weights2= None, weighted = False, b_offset=B_OFFSET, lb_period = LB_PERIOD, debug=0):
         super().__init__(id, child_ids, bucket_size, weights, max_n_child, T0, reward_option, ecmp, child_prefix= child_prefix, layer = layer, debug = debug, weights2 = weights2)
         self.po2 = po2 # power-of-2-choices
         self.weighted = weighted

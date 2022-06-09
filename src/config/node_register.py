@@ -1,8 +1,10 @@
 from common.entities import NodeAS, NodeClient, NodeStatelessLB, NodeLB
+from policies.rl_sac_tiny import NodeRLBSAC_Tiny
 from policies.rule import NodeLBLSQ, NodeLBSED, NodeLBSRT, NodeLBGSQ, NodeLBActive
 from policies.heuristic import NodeLBAquarius, NodeHLB, NodeHLBada, NodeLBGeometry, NodeLBHermes, NodeLBRS, NodeLBProbFlow
 from policies.rl_sac import NodeRLBSAC
 from policies.rl_sac_small import NodeRLBSAC_Small
+from policies.rl_sac_tiny import NodeRLBSAC_Tiny
 from config.global_conf import KF_CONF, HIDDEN_DIM
 
 # ---------------------------------------------------------------------------- #
@@ -166,6 +168,9 @@ METHODS = {
     },
     "rlb-sac-small": { # SAC model
         "class": NodeRLBSAC_Small,
+    },
+    "rlb-sac-tiny": { # SAC model
+        "class": NodeRLBSAC_Tiny,
     }
 }
 

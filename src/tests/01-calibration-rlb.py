@@ -77,14 +77,12 @@ methods = [
 ]
 
 n_lb = [1]
-n_ass = [64]
+n_ass = [8]
 setup_fmt = '{}lb-{}as-{}-hidden'
 
-hidden_dims = [64,128,512,1024,2048]
-rewards = [2]
-lb_periods = [0.5]
+hidden_dims = [512]
 
-n_episode = 30
+n_episode = 15
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5

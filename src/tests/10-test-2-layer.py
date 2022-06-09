@@ -70,7 +70,7 @@ def add_rates(tasks, rates):
 
 seed = 2
 
-n_episode = 25
+n_episode = 20
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
@@ -84,7 +84,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
     data_dir = root_dir+experiment_name
     
     methods = [
-        ["rlb-sac", 'lsq', True],
+        ["rlb-sac", 'lsq', False],
     ]
     configs = [
         (1,4,16),

@@ -204,17 +204,8 @@ def calcul_fair(values):
     else:
         return 1.
     
-def calcul_fair_efficient1(values):
-    
-    values = np.array(values)
-    n = len(values)
-    if sum(values) != 0.:
-        utility = CPU_FCT_MU/np.mean(values)
-        fairness =  pow(sum(values), 2)/(n*sum(pow(values, 2)))
-        return fairness * utility
-    else:
-        return 1.
-    
+def calcul_fair_g(values):
+    raise NotImplementedError
 
 def calcul_over(values):
     '''
@@ -225,6 +216,144 @@ def calcul_over(values):
     '''
     values = np.array(values)
     return values.max() / (values.mean() + 1e-6)
+
+def calcul_fair_jain(values):
+    '''
+    @brief:
+        calculate Jain's fairness
+    @params:
+        values: a list of values
+    '''
+    values = np.array(values)
+    n = len(values)
+    if sum(values) != 0.:
+        return pow(sum(values), 2)/(n*sum(pow(values, 2)))
+    else:
+        return 1.
+
+
+def calcul_fair_product(values):
+    '''
+    @brief:
+        calculate G's fairness
+    @params:
+        values: a list of values
+        k: kth order fairness
+    '''
+    values = np.array(values)
+    return np.prod(values/(max(values)+1e-6))
+
+
+def calcul_fair_variance(values):
+    '''
+    @brief:
+        calculate variance based fairness
+    @params:
+        values: a list of values
+    '''
+    return -np.var(values)
+
+
+def calcul_fair_variance_exp(values, k=10000):
+    '''
+    @brief:
+        calculate variance based fairness
+    @params:
+        values: a list of values
+    '''
+    return np.exp(-k*np.var(values))
+
+
+def calcul_fair_variance_plus_exp(values, k=10000):
+    '''
+    @brief:
+        calculate variance based fairness
+    @params:
+        values: a list of values
+    '''
+    return -np.var(values)+np.exp(-k*np.var(values))
+
+
+def calcul_fair_variance_plus_log(values):
+    '''
+    @brief:
+        calculate variance based fairness
+    @params:
+        values: a list of values
+    '''
+    var = np.var(values)
+    return -var-np.log(var+1e-6)
+
+
+def calcul_var_2_norm(values):
+    '''
+    @brief:
+        calculate variance based fairness
+    @params:
+        values: a list of values
+    '''
+    var = np.var(values)
+    return -var/(np.linalg.norm(values, ord=2)+1e-6)
+
+
+def calcul_fair_std_plus_log(values):
+    '''
+    @brief:
+        calculate variance based fairness
+    @params:
+        values: a list of values
+    '''
+    std = np.std(values)
+    return -std-np.log(std+1e-6)
+
+
+def calcul_fair_variance_log(values):
+    '''
+    @brief:
+        calculate variance based fairness
+    @params:
+        values: a list of values
+    '''
+    return -np.log(np.var(values)+1e-6)
+
+
+def calcul_max(values):
+    '''
+    @brief:
+        calculate makespan
+    '''
+    return -max(values)
+
+
+def calcul_max_log(values):
+    '''
+    @brief:
+        calculate log value of makespan to make values close to 0 more sensitive
+    '''
+    return -np.log(max(values)+1e-6)
+
+
+def calcul_max_exp(values, k=10000):
+    '''
+    @brief:
+        calculate exp of makespan to make values close to 0 more sensitive
+    @params:
+        values: a list of values
+    '''
+    return np.exp(-k*max(values))
+
+
+def calcul_cv(values, k=10000):
+    '''
+    @brief:
+        calculate exp of makespan to make values close to 0 more sensitive
+    @params:
+        values: a list of values
+    '''
+
+    return -np.std(values)/(np.mean(values)+1e-6)
+    
+
 
 def get_t_v_from_reservoir_buffer(buffer):
     tss = np.array([e[0] for e in buffer])
@@ -321,12 +450,26 @@ ecmp_methods = {
 #--- reward ---#
 reward_options = {
     # option 0: 1-overprovision
-    0: lambda x: 1 - calcul_over(x),
+    'overprovision': lambda x: 1 - calcul_over(x),
     # option 1: difference between min and max
-    1: lambda x: min(x) - max(x),
+    'minmax': lambda x: min(x) - max(x),
     # option 2: Jain's fairness index - 1
-    2: lambda x: calcul_fair(x)-1,
-    3: lambda x: calcul_fair_efficient1(x)-1,
+    'jain2': lambda x: calcul_fair(x)-1,
+    # option 2: Jain's fairness index - 1
+    'G': lambda x: calcul_fair_g(x)-1,
+    'jain': calcul_fair_jain,
+    'product': calcul_fair_product,
+    'var': calcul_fair_variance,
+    'var_exp': calcul_fair_variance_exp,
+    'var_plus_exp': calcul_fair_variance_plus_exp,
+    'var_plus_log': calcul_fair_variance_plus_log,
+    'std_plus_log': calcul_fair_std_plus_log,
+    'var_log': calcul_fair_variance_log,
+    'max': calcul_max,
+    'max_exp': calcul_max_exp,
+    'max_log': calcul_max_log,
+    'var_2_norm': calcul_var_2_norm,
+    'cv': calcul_cv,
 }
 
 def fct_generator(fct_type): 

@@ -52,7 +52,7 @@ METHOD = 'heuristic'
 # the feature to be used to calculate reward | previously as `reward_feature`
 REWARD_FEATURE = 'res_fct_avg_disc'
 HIDDEN_DIM = 512
-REWARD_OPTION = 2
+REWARD_OPTION = 'jain2'
 # including 
 #   0: 1-overprovision; 
 #   1: negative exponential difference between mean and max; 
@@ -449,7 +449,7 @@ parser.add_argument('--n-worker2change', type=int, action='store',
 parser.add_argument('--reward-feature', action='store', default=REWARD_FEATURE,
                     dest='reward_feature', help='Use which feature to calculate reward.')
 
-parser.add_argument('--reward-option', type=int, action='store', default=REWARD_OPTION,
+parser.add_argument('--reward-option', action='store', default=REWARD_OPTION,
                     dest='reward_option', help='Use which way of calcualting reward.')
 
 parser.add_argument('--hidden-dim', type=int, action='store', default=HIDDEN_DIM,

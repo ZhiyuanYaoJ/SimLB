@@ -21,7 +21,7 @@ import struct
 
 #--- MACROS ---#
 DEVICE = torch.device("cpu")
-REPLAY_BUFFER_SIZE = 1000
+REPLAY_BUFFER_SIZE = 10000
 DEBUG = 0
 
 from functools import wraps
@@ -41,7 +41,7 @@ def timeit(func):
         if total_time>0.0001:
             t0 += total_time
             i +=1
-            print('Result {}'.format(t0))
+            print('Result {}'.format(total_time))
         #if i%10 == 0:
             #print(t0)
         return result
@@ -193,18 +193,12 @@ class SoftQNetwork(nn.Module):
             obs_lb, obs_as[:n_batch],
             feature_as_bn_buffer.reshape(n_batch, -1), action
         ], 1)  # concat all features and actions into #n_batch rows
-        t1 = time.time()
         # print(torch.numel(x))
         x = F.elu(self.linear1(x))
         x = self.ln1(x)
         # x=F.elu(self.linear2(x))
         # x=F.elu(self.linear3(x))
         x = self.linear4(x)
-        t2 = time.time()-t1
-        
-        
-        global t0
-        # print(t2)
         return x
 
 
@@ -350,12 +344,13 @@ class PolicyNetwork(nn.Module):
         std = log_std.exp()
 
         normal = Normal(0, 1)
-        z = normal.sample()
+        # z = normal.sample()
+        z2 = normal.sample(mean.shape)
         # a mask that leaves only active AS's action
         action_mask = torch.zeros_like(mean)
         action_mask[0, active_as] = self.action_range
-        action = action_mask * (torch.tanh(mean + std * z) + 1 + 1e-6)
-
+        # action = action_mask * (torch.tanh(mean + std * z) + 1 + 1e-6)
+        action = action_mask * (torch.tanh(mean + std * z2) + 1 + 1e-6)
         action = (action_mask * torch.tanh(mean).detach().cpu().numpy() +
                   1) if deterministic else action.detach().cpu().numpy()
         return action[0]
