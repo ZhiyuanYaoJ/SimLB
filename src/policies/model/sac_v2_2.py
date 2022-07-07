@@ -99,20 +99,26 @@ class ReplayBuffer(object):
         '''
         if len(self.buffer) < self.capacity:
             self.buffer.append(None)
-        self.buffer[self.position] = (  # (active_as, next_active_as, feature_lb, feature_as, next_feature_lb, next_feature_as, action, reward)
-                state[0], next_state[0], state[1], state[2], next_state[1],
-                next_state[2], action, reward)
+        elts = {}
+        for i in state.keys():
+            # (active_as, next_active_as, feature_lb, feature_as, next_feature_lb, next_feature_as, action, reward)
+            elts[i] = state[i][0], next_state[i][0], state[i][1], state[i][2], next_state[i][1], next_state[i][2], action[i], reward[i]
+                
+        self.buffer[self.position] = elts
         self.position = int(
             (self.position + 1) % self.capacity)  # as a ring buffer
 
     def sample(self, batch_size):
-        batch = random.sample(self.buffer, batch_size)
+        sample = random.sample(self.buffer, batch_size)
+        batch = []
+        for s in sample:
+            for e in s.values():
+                batch.append(e)
         active_as = [sample[0] for sample in batch]
         next_active_as = [sample[1] for sample in batch]
         batch2stack = [sample[2:] for sample in batch]
         feature_lb, feature_as, next_feature_lb, next_feature_as, action, reward = map(
             np.stack, zip(*batch2stack))
-
         return [active_as, feature_lb, feature_as], action, reward, [next_active_as, next_feature_lb, next_feature_as]
 
     def __len__(self):
@@ -348,13 +354,6 @@ class PolicyNetwork(nn.Module):
         action = action_mask * (torch.tanh(mean + std * z) + 1 + 1e-6)
         action = (action_mask * torch.tanh(mean).detach().cpu().numpy() +
             1) if deterministic else action.detach().cpu().numpy()
-        action2 = action_mask * (torch.tanh(mean) + 1 + 1e-6)
-        mean = action_mask * mean
-        std = action_mask * std
-        print('m = {}'.format(action2[0][0:len(active_as)+1].detach().numpy()))
-        print('std = {}'.format(std[0][0:len(active_as)+1].detach().numpy()))
-        # print('all = {}'.format(action[0][0:len(active_as)+1].detach().numpy()))
-        # print('mean = {}'.format(mean[0][0:len(active_as)+1].detach().numpy()))
         return action[0]
 
     def sample_action(self, active_as):
@@ -386,7 +385,7 @@ class SAC_Trainer():
         self.replay_buffer = replay_buffer
         if DEBUG > 0 : print(DEVICE)
         self.soft_q_net1 = SoftQNetwork(n_feature_as, n_feature_lb, action_dim,
-                                        hidden_dim).to(DEVICE)
+                                         hidden_dim).to(DEVICE)
         self.soft_q_net2 = SoftQNetwork(n_feature_as, n_feature_lb, action_dim,
                                         hidden_dim).to(DEVICE)
         self.target_soft_q_net1 = SoftQNetwork(n_feature_as, n_feature_lb,

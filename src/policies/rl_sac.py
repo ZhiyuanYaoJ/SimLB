@@ -6,11 +6,10 @@ from config.global_conf import ACTION_DIM, RENDER, DISPLAY, FEATURE_AS_ALL, FEAT
 from common.entities import NodeLB
 from policies.model.sac_v2 import *
 
-
+c=0
 from functools import wraps
 i=0
 t0=0
-sum=0
 def timeit(func):
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
@@ -170,8 +169,9 @@ class NodeRLBSAC(NodeLB):
 
         # step 3
         t1 = time.time()  # take the second timestamp
+        
         self.train()
-
+        
         # step 4
         t_gen_weight = self.generate_weight(state)
 
@@ -196,7 +196,7 @@ class NodeRLBSAC(NodeLB):
         if RENDER:
             self.render(ts, state)
 
-        if DISPLAY>0 and self.layer==1:
+        if DISPLAY>0 and self.layer==1 and self.debug >1:
             print(">> ({:.3f}s) in {}: new weights {}".format(
                 ts, self.__class__, self.weights[self.child_ids]))
 
@@ -206,13 +206,16 @@ class NodeRLBSAC(NodeLB):
             update SAC models with samples from buffer
             TODO: whether update for each step or for each episode, need to be determined
         '''
-        if len(self.replay_buffer) > SAC_training_confs['batch_size']:
-            for i in range(SAC_training_confs['update_itr']):
-                _ = self.sac_trainer.update(
-                    SAC_training_confs['batch_size'],
-                    reward_scale=SAC_training_confs['reward_scale'],
-                    auto_entropy=SAC_training_confs['AUTO_ENTROPY'],
-                    target_entropy=-1.*self.action_dim,
+        if len(self.replay_buffer) < 2 : return
+        if len(self.replay_buffer) < SAC_training_confs['batch_size']:
+            batch_size = len(self.replay_buffer)
+        else: batch_size = SAC_training_confs['batch_size']
+        for i in range(SAC_training_confs['update_itr']):
+            _ = self.sac_trainer.update(
+                batch_size,
+                reward_scale=SAC_training_confs['reward_scale'],
+                auto_entropy=SAC_training_confs['AUTO_ENTROPY'],
+                target_entropy=-1.*len(self.child_ids),
                 )
 
     def render(self, ts, state):

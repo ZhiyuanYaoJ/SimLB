@@ -89,29 +89,30 @@ def generate_node_config_hierarchical(
     if m>0: k+=1
     for i in lbs_config:
         lbs_config[i]['child_ids'] = list(range((i-1)*k,min((i)*k, n_as)))
-
+        
+    #Initialization with baseline (desactivated)
     #for i in range(n_worker2change):  # update half as configuration
         #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
-    #for i in as_config:
-        #as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})        
-    
-    as_config[0].update({'n_worker': 1})     
-    as_config[1].update({'n_worker': 1})     
-    as_config[2].update({'n_worker': 1})     
-    as_config[3].update({'n_worker': 1})       
-    as_config[4].update({'n_worker': 2})     
-    as_config[5].update({'n_worker': 2})     
-    as_config[6].update({'n_worker': 2})     
-    as_config[7].update({'n_worker': 2})     
+        
+    #Initialization with distribution (desactivated)
+    # for i in as_config:
+    #     as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})
+        
+    #Initialization with set manually weights
+ 
     try:
-        as_config[8].update({'n_worker': 1})     
-        as_config[9].update({'n_worker': 1})     
-        as_config[10].update({'n_worker': 1})     
-        as_config[11].update({'n_worker': 1})       
-        as_config[12].update({'n_worker': 2})     
-        as_config[13].update({'n_worker': 2})     
-        as_config[14].update({'n_worker': 2})     
-        as_config[15].update({'n_worker': 2})   
+        if n_as == 64:
+            for i in range (8):
+                for j in range (8):    
+                    as_config[8*i+j].update({'n_worker': i+1})     
+        if n_as == 16:
+            for i in range (4):
+                for j in range (4):    
+                    as_config[4*i+j].update({'n_worker': i+1})     
+        if n_as == 2:
+            for i in range (2):
+                for j in range (2):    
+                    as_config[2*i+j].update({'n_worker': i+1})     
     except:
         pass 
         
@@ -130,17 +131,19 @@ def generate_node_config_hierarchical(
 
     # For primary LB
     if 'config' in METHODS[lbp_method].keys():
+        #If primary LBs need weights (e.g. WCMP) but not secondary LBs, set weights as the sum of child capacities
         if 'weights' in METHODS[lbp_method]['config'].keys() and METHODS[lbp_method]['config']['weights'] == {}:
             METHODS[lbp_method]['config']['weights'] = {
                     i: sum([as_config[k]['n_worker'] for k in lbs_config[i]['child_ids']]) for i in lbs_ids}
             
-        
+        #If primary LBs and secondary LBs need weights (e.g. WCMP), set weights2 as the sum of child capacities        
         elif 'weights' in METHODS[lbp_method]['config'].keys() and not METHODS[lbp_method]['config']['weights'] == {}:
             for i in lbp_config:
                 lbp_config[i].update({'weights2': {i: sum([as_config[k]['n_worker'] for k in lbs_config[i]['child_ids']]) for i in lbs_ids }})
-              
+            
         for i in lbp_config.keys():
             lbp_config[i].update(METHODS[lbp_method]['config'])
+            
     if 'rlb' in lbp_method:
         for i in lbp_config.keys():
             lbp_config[i].update({'logger_dir': log_folder+'/rlp.log',

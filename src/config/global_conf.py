@@ -8,6 +8,7 @@ import time
 import random
 import numpy as np
 import argparse
+np.set_printoptions(linewidth=np.inf, suppress = True)
 
 SEED = 44  # random seed
 random.seed(SEED)
@@ -19,9 +20,9 @@ np.random.seed(SEED)
 
 # ------------------------------------ AS ------------------------------------ #
 
-N_AS = 4  # number of application server node(s)
+N_AS = 64  # number of application server node(s)
 
-ACTION_DIM = 8  # maximal amount of application server nodes, as in emulator
+ACTION_DIM = 600  # maximal amount of application server nodes, as in emulator
 
 # baseline number of worker threads for each AS 
 N_WORKER_BASELINE = 1
@@ -30,11 +31,10 @@ N_WORKER_BASELINE = 1
 AS_MULTIPROCESS_LEVEL = 1
 
 # in terms of server capacity variance
-N_WORKER2CHANGE = 0.5
+N_WORKER2CHANGE = 0
 N_WORKER_MULTIPLIER = 2
 N_WORKER_MULTIPLIER_DISTRIBUTION = [0.2, 0.4, 0.3, 0.1, 0]
 
-#AS_MAX_CLIENT = 64
 AS_MAX_CLIENT = 640
 
 T_TIMEOUT = 40 # rejected flows will be returned to client after 40 seconds
@@ -53,12 +53,6 @@ METHOD = 'heuristic'
 REWARD_FEATURE = 'res_fct_avg_disc'
 HIDDEN_DIM = 512
 REWARD_OPTION = 'jain2'
-# including 
-#   0: 1-overprovision; 
-#   1: negative exponential difference between mean and max; 
-#   2: difference between min and max; 
-#   3: exponential difference between min and max; 
-#   4: jain's fairness index
 
 
 # update padding option 

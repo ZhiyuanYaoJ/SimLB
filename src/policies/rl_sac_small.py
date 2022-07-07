@@ -19,12 +19,10 @@ def timeit(func):
         total_time = end_time - start_time
         #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
         global t0, i
-        if total_time>0.001:
+        if total_time>0.0:
             t0 += total_time
             i +=1
             print('Result {}'.format(total_time))
-        #if i%10 == 0:
-            #print(t0)
         return result
     return timeit_wrapper
 
@@ -92,7 +90,7 @@ class NodeRLBSAC_Small(NodeLB):
         if self.rl_test:
             model_path = SAC_training_confs['model_path']
             self.sac_trainer.load_model(model_path)
-    
+
     def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
@@ -208,7 +206,7 @@ class NodeRLBSAC_Small(NodeLB):
         if RENDER:
             self.render(ts, state)
 
-        if DISPLAY>0 and self.layer==1:
+        if DISPLAY>0 and self.layer==1 and self.debug >1:
             print("new weights {}".format(self.weights[self.child_ids]))
             print(' ')
 
@@ -218,14 +216,18 @@ class NodeRLBSAC_Small(NodeLB):
             update SAC models with samples from buffer
             TODO: whether update for each step or for each episode, need to be determined
         '''
-        if len(self.replay_buffer) > SAC_training_confs['batch_size'] * len(self.child_ids):
-            for i in range(SAC_training_confs['update_itr']):
-                _ = self.sac_trainer.update(
-                    SAC_training_confs['batch_size'] * len(self.child_ids),
-                    reward_scale=SAC_training_confs['reward_scale'],
-                    auto_entropy=SAC_training_confs['AUTO_ENTROPY'],
-                    target_entropy=-1.*self.action_dim,
-                )
+        if len(self.replay_buffer) < 2 : return
+        if len(self.replay_buffer) < SAC_training_confs['batch_size'] * len(self.child_ids):
+            batch_size = len(self.replay_buffer)
+        else: batch_size = SAC_training_confs['batch_size'] * len(self.child_ids)
+        
+        for i in range(SAC_training_confs['update_itr']):
+            _ = self.sac_trainer.update(
+                batch_size,
+                reward_scale=SAC_training_confs['reward_scale'],
+                auto_entropy=SAC_training_confs['AUTO_ENTROPY'],
+                target_entropy=-1.*len(self.child_ids),
+            )
 
     def render(self, ts, state):
 

@@ -6,7 +6,6 @@
 
 from config.global_conf import *
 from config.node_register import METHODS, NODE_MAP
-import config.user_conf
 
 # ---------------------------------------------------------------------------- #
 #                                      Log                                     #
@@ -32,7 +31,6 @@ def generate_node_config_tier4(
     lb_bucket_size=LB_BUCKET_SIZE,
     log_folder=LOG_FOLDER,
     rl_test=False,
-    user_conf=-1,
     debug=DEBUG):
     clt_ids = list(range(n_clt))
     er_ids = list(range(n_er))
@@ -67,23 +65,24 @@ def generate_node_config_tier4(
     as_config = {i: as_template.copy() for i in as_ids}
     lb_config = {i: lb_template.copy() for i in lb_ids}
 
+    #Initialization with baseline (desactivated)
     #for i in range(n_worker2change):  # update half as configuration
         #as_config[i].update({'n_worker': n_worker_baseline*n_worker_multiplier})
-    for i in as_config:
-        as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})
-    as_config[0].update({'n_worker': 1})     
-    as_config[1].update({'n_worker': 2})
+        
+    #Initialization with distribution (desactivated)
+    # for i in as_config:
+    #     as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})
+        
+    #Initialization with set manually weights
+    # as_config[0].update({'n_worker': 1})     
+    # as_config[1].update({'n_worker': 2})
+    try:
+        for i in range (8):
+            for j in range (8):    
+                as_config[8*i+j].update({'n_worker': i+1})     
+    except:
+        pass 
     
-    # try:     
-    #     as_config[2].update({'n_worker': 4})     
-    #     as_config[3].update({'n_worker': 4})   
-    # except: pass
-    # try:  
-    #     as_config[4].update({'n_worker': 6})     
-    #     as_config[5].update({'n_worker': 4})  
-    #     as_config[6].update({'n_worker': 4})  
-    #     as_config[7].update({'n_worker': 4})  
-    # except: pass
     
     if 'config' in METHODS[lb_method].keys():
         if 'weights' in METHODS[lb_method]['config'].keys() and METHODS[lb_method]['config']['weights'] == {}:
@@ -96,13 +95,6 @@ def generate_node_config_tier4(
             lb_config[i].update({'logger_dir': log_folder+'/rl.log',
                                  'rl_test': rl_test})
 
-    #if user_conf >= 0:
-    #    configuration = config.user_conf.user_conf[user_conf]
-    #    if lb_method in configuration['METHODS'].keys() and 'config' in METHODS[lb_method].keys():
-    #        for i in lb_config.keys():
-    #            lb_config[i].update(configuration['METHODS'][lb_method]['config'])
-    #    print(configuration['METHODS'][lb_method]['config'])
-    #    print(lb_config[0])
     return {
         'clt': clt_config,
         'er': er_config,
@@ -152,13 +144,31 @@ CP_EVENTS2ADD = [
     #     }
     # ),
     # (
-    #     400.0+2e-7,
+    #     800.0+2e-7,
     #     'as_update_capacity',
     #     'sys-admin',
     #     {
-    #         'node_ids': ['as{}'.format(i) for i in range(64, 96)],
-    #         'n_worker': N_WORKER_BASELINE,
+    #         'node_ids': ['as{}'.format(i) for i in range(6,8)],
+    #         'n_worker': 1,
     #         'mp_level': 1,
+    #     }
+    # ),
+    # (
+    #     1200.0+2e-7,
+    #     'lb_remove_server',
+    #     'sys-admin',
+    #     {
+    #         'lbs': [0],
+    #         'ass': [6,7]
+    #     }
+    # ),
+    #     (
+    #     400.0+2e-7,
+    #     'lb_add_server',
+    #     'sys-admin',
+    #     {
+    #         'lbs': [0],
+    #         'ass': [32,33,34,35,36,37,38,39],
     #     }
     # ),
     # (

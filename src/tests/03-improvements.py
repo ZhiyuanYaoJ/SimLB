@@ -73,14 +73,19 @@ def add_rates(tasks, rates):
 seed = 45
 
 methods = [
-    "rlb-sac", # SAC model
+    # "rlb-sac", # SAC model
+    # "rlb-sac2", # SAC model
+    # "rlb-sac-tiny", # SAC model
+    "rlb-sac-tiny2", # SAC model
+    # "lsq", # SAC model
 ]
 
 n_lb = [1]
-n_ass = [4,8,16,64]
+n_ass = [8]
 setup_fmt = '{}lb-{}as-{}-hidden'
 
 hidden_dims = [512]
+max_n_childs = [2]
 
 n_episode = 15
 first_episode_id = 0
@@ -98,7 +103,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
     counter = Value('i', 0)
     T0 = time.time()
 
-    experiment_name = 'calibration'
+    experiment_name = 'improvements'
     root_dir = '../data/simulation/'
     data_dir = root_dir+experiment_name
 
@@ -109,8 +114,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
                     n_lb, n_as, hidden_dim)
                 print(setup)
                 cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --hidden-dim {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
-                    n_lb, n_as, hidden_dim, n_as, t_episode, t_episode_inc, n_episode)
-                #cmd_preamable = 'python3 run.py --n-lb {} --n-as {} -t {} --t-inc {} --n-episode {} --dump-all'.format(n_lb, n_as, t_episode, t_episode_inc, n_episode)
+                    n_lb, n_as, hidden_dim, n_as, t_episode, t_episode_inc, n_episode)                        
                 for method in methods:
                     cmd = cmd_preamable + ' -m {}'.format(method)
                     log_folder = '/'.join([data_dir, setup, method])

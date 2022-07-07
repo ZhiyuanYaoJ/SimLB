@@ -4,7 +4,7 @@ import time
 import numpy as np
 from config.global_conf import ACTION_DIM, RENDER, DISPLAY, FEATURE_AS_ALL, FEATURE_LB_ALL, N_FEATURE_AS, N_FEATURE_LB, B_OFFSET, HEURISTIC_ALPHA, LB_PERIOD, HIDDEN_DIM, REWARD_OPTION, REWARD_FEATURE,DEBUG
 from common.entities import NodeLB
-from policies.model.sac_v2 import *
+from policies.model.sac_v2_2 import *
 
 
 from functools import wraps
@@ -39,7 +39,7 @@ SAC_training_confs = {'hidden_dim': HIDDEN_DIM,
 
 DETERMINISTIC = False
 
-class NodeRLBSAC_Tiny(NodeLB):
+class NodeRLBSAC_Tiny2(NodeLB):
     '''
     @brief:
         RL solution for simulated load balancer with SAC model.
@@ -72,9 +72,9 @@ class NodeRLBSAC_Tiny(NodeLB):
         self.b_offset = b_offset
         # init rl agent
         self.logger = init_logger(logger_dir, "rl-logger")
-        self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE * len(self.child_ids))
+        self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
         self.last_state = None
-        self.last_action = None
+        self.last_action = {}
         self.action_dim = 1
         global SAC_training_confs
         SAC_training_confs = SAC_training_confs_
@@ -85,12 +85,12 @@ class NodeRLBSAC_Tiny(NodeLB):
     def reset(self):
         super().reset()
         self.last_state = None
-        self.last_action = None
+        self.last_action = {}
         # load model if possible
         if self.rl_test:
             model_path = SAC_training_confs['model_path']
             self.sac_trainer.load_model(model_path)
-
+    
     def choose_child(self, flow, nodes=None, ts=None):
         # we still need to generate a bucket id to store the flow
         bucket_id, _ = self._ecmp(
@@ -149,8 +149,7 @@ class NodeRLBSAC_Tiny(NodeLB):
         if False:
             t_rest_all = np.zeros(self.max_n_child)
             t_rest_all[self.child_ids] = [nodes['{}{:d}'.format(self.child_prefix, i)].get_t_rest_total(ts) for i in self.child_ids]
-        t_rest_all = None    
-        
+        t_rest_all = None
         return ([0], feature_lb, feature_as, t_rest_all) # gt set to rest time
 
     def generate_weight(self, state, child_id = None):
@@ -167,6 +166,7 @@ class NodeRLBSAC_Tiny(NodeLB):
         self.weights[child_id] = self.alpha*new_weights+(1-self.alpha)*self.weights[child_id]
         return time.time() - t0
 
+
     def step(self, ts, nodes=None):
         '''
         @brief:
@@ -177,7 +177,6 @@ class NodeRLBSAC_Tiny(NodeLB):
             4. provide next action for env.
         '''
         t0 = time.time()  # take the first timestamp
-
         # step 0: get state
         state = {}
         for i in self.child_ids:
@@ -190,7 +189,7 @@ class NodeRLBSAC_Tiny(NodeLB):
         if self.last_state:  # ignore the first step
             for i in self.child_ids:
                 self.replay_buffer.push(
-                    self.last_state[i], [self.last_action[i]], reward[i], state[i])
+                    self.last_state, self.last_action, reward, state)
 
         # step 3
         t1 = time.time()  # take the second timestamp
@@ -203,7 +202,8 @@ class NodeRLBSAC_Tiny(NodeLB):
 
         # step -1
         self.last_state = state
-        self.last_action = self.weights
+        for i in self.child_ids:
+            self.last_action[i] = [self.weights[i]]
 
         step_delay = t1 - t0 + t_gen_weight  # just ignore train time
         
@@ -235,9 +235,10 @@ class NodeRLBSAC_Tiny(NodeLB):
             TODO: whether update for each step or for each episode, need to be determined
         '''
         if len(self.replay_buffer) <2 : return
-        if len(self.replay_buffer) < SAC_training_confs['batch_size'] * len(self.child_ids):
+        if len(self.replay_buffer) < SAC_training_confs['batch_size']:
             batch_size = len(self.replay_buffer)
-        else: batch_size = SAC_training_confs['batch_size'] * len(self.child_ids)
+        else: batch_size = SAC_training_confs['batch_size']
+        
         for i in range(SAC_training_confs['update_itr']):
             _ = self.sac_trainer.update(
                 batch_size,

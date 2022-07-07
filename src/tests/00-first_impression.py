@@ -74,12 +74,13 @@ seed = 45
 
 methods = [
     "rlb-sac", # SAC model
+    "rlb-sac-tiny", # SAC model
 ]
 
 n_lb = [1]
-n_ass = [4]
-max_n_childs = [4,8,32]
-setup_fmt = '{}lb-{}as-{}max'
+n_ass = [8,64]
+max_n_childs = [64]
+setup_fmt = '{}lb-{}as'
 
 n_episode = 10
 first_episode_id = 0
@@ -103,18 +104,17 @@ if __name__ == "__main__":  # confirms that the code is under main function
 
     for n_lb in n_lb:
         for n_as in n_ass:
-            for max_n_child in max_n_childs:
-                setup = setup_fmt.format(
-                    n_lb, n_as, max_n_child)
-                print(setup)
-                cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
-                    n_lb, n_as, max_n_child, t_episode, t_episode_inc, n_episode)                        
-                for method in methods:
-                    cmd = cmd_preamable + ' -m {}'.format(method)
-                    log_folder = '/'.join([data_dir, setup, method])
-                    tasks.append([cmd, log_folder])
-                    Path(log_folder).mkdir(parents=True, exist_ok=True)
-                    print('task : {}', cmd)
+            setup = setup_fmt.format(
+                n_lb, n_as)
+            print(setup)
+            cmd_preamable = 'python3 run.py --n-lb {} --n-as {} --max-n-child {} -t {} --t-inc {} --n-episode {} --dump-all'.format(
+                n_lb, n_as, n_as, t_episode, t_episode_inc, n_episode)                        
+            for method in methods:
+                cmd = cmd_preamable + ' -m {}'.format(method)
+                log_folder = '/'.join([data_dir, setup, method])
+                tasks.append([cmd, log_folder])
+                Path(log_folder).mkdir(parents=True, exist_ok=True)
+                print('task : {}', cmd)
     final_tasks = add_rates(tasks, query_rate_list)
     total_task = len(final_tasks)
     for t in final_tasks:

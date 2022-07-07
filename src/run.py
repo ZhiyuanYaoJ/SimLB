@@ -25,7 +25,6 @@ def init_global_variables(args):
         as_mp_level=args.as_mp_level,
         log_folder=args.log_folder,
         rl_test=args.rl_test,
-        user_conf=args.user_conf,
         debug=DEBUG)
 
 
@@ -48,9 +47,6 @@ def init_global_variables(args):
         
     # RLB configuration
     if 'rlb-sac' in args.method:
-        hidden_dim = args.hidden_dim
-        lb_period = args.lb_period
-        reward_option = args.reward_option
         SAC_training_conf = {'hidden_dim': args.hidden_dim,
                             'action_range': 1.,
                             'batch_size': 64,

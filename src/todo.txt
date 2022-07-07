@@ -1,6 +1,0 @@
-Add events checking stability
-Add real clustering often
-change clustering so it doesn't take n_workers into account but rather metrics
-Add clustering neural network agent
-Make number of layer size dependent
-time analysis of rlb-sac

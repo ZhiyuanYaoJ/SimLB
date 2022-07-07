@@ -1,13 +1,13 @@
 {
     "experiment": "master",
-    "seed": 42,
+    "seed": 44,
     "nodes": {
         "as": {
-            "n": 12,
+            "n": 64,
             "n_max": 600,
-            "n_cpu_base": 2,
+            "n_cpu_base": 1,
             "mp_level": 1,
-            "cpu_upgrade_ratio": 0.5,
+            "cpu_upgrade_ratio": 0,
             "cpu_upgrade_value": 2,
             "n_io": 1,
             "backlog": 64,
@@ -18,14 +18,15 @@
             "n": 1          
         },
         "lb": {
-            "n": 2,
+            "n": 1,
             "update_period": 0.5,
             "update_padding": "valid",
-            "method": "hlb",
+            "method": "heuristic",
             "n_bucket": 65536,
             "render": {
                 "step": false,
-                "receive": false
+                "receive": false,
+                "display": true
             },
             "rtt": {
                 "min": 1e-3,
@@ -40,14 +41,15 @@
     "feature": {
         "reservoir": {
             "fresh_base": 0.5,
-            "size": 64,
+            "size": 32,
             "p": 1,
             "reduce_option": [
                 "avg", 
                 "std", 
                 "p90", 
                 "avg_disc", 
-                "avg_decay"
+                "avg_decay",
+                "avg_step"
             ]
         },
         "as": {
@@ -68,29 +70,29 @@
         }
     },
     "simulation": {
-        "n_episode": 1,
+        "n_episode": 10,
         "first_episode": 0,
-        "t_len": 200,
+        "t_len": 60,
         "n_flow": -1,
-        "t_inc": 1,
+        "t_inc": 5,
         "log_folder": "log",
         "dump_all_flow": true,
         "debug": 0
     },
     "traffic": {
-        "rate": 0.8,
+        "rate": 0.9,
         "n_stage": 1,
         "first_stage": "cpu",
         "cpu_fct": {
             "type": "exp",
-            "mu": 0.5,
-            "std": 0.5,
+            "mu": 0.1,
+            "std": 0.1,
             "min": 1e-6,
             "max": null
         },
         "io_fct": {
             "type": "exp",
-            "mu": 0.5,
+            "mu": 0.2,
             "std": 0.5,
             "min": 1e-6,
             "max": null

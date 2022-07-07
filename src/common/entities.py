@@ -23,10 +23,10 @@ from common.utils import *
 from statistics import mean
 import warnings
 
-tab = [0,0]
+
 Event = namedtuple('Event', 'time name added_by kwargs')
 t0=0
-i = 0
+i=0
 from functools import wraps
 def timeit(func):
     '''
@@ -359,76 +359,77 @@ class RingBuffer:
             return None
         else:
             return np.mean(self.queue, axis = 0)     
+# class ReservoirSamplingBuffer(object):
+#     '''
+#     @brief:
+#         A simple implementation of reservoir sampling buffer which consists of a list of (ts, value)
+#     '''
 
-class ReservoirSamplingBuffer(object):
-    '''
-    @brief:
-        A simple implementation of reservoir sampling buffer which consists of a list of (ts, value)
-    '''
+#     def __init__(self, size, p=1., fresh_base=0.9):
+#         assert size > 0
+#         self.size = size # buffer size
+#         self.table_mask = size-1
+#         assert 0 < p <= 1
+#         self.p = p
+#         assert 0 < fresh_base <= 1
+#         self.fresh_base = fresh_base
+#         self.tss = np.zeros(size) # timestamps
+#         self.values = np.zeros(size)  # values
 
-    def __init__(self, size, p=1., fresh_base=0.9):
-        assert size > 0
-        self.size = size # buffer size
-        self.table_mask = size-1
-        assert 0 < p <= 1
-        self.p = p
-        assert 0 < fresh_base <= 1
-        self.fresh_base = fresh_base
-        self.tss = np.zeros(size) # timestamps
-        self.values = np.zeros(size)  # values
+#     def __get_freshness(self, ts):
+#         '''
+#         @brief:
+#             calculate datapoint freshness based on timestamps
+#         @params:
+#             ts: current timestamp to compare freshness
+#         '''
+#         assert ts > max(self.tss), "ts {:.3f}s".format(ts) + str(self.tss)
+#         delta_t = [ts - t if t != 0 else 0 for t in self.tss]
+#         return np.power(self.fresh_base, delta_t)
 
-    def __get_freshness(self, ts):
-        '''
-        @brief:
-            calculate datapoint freshness based on timestamps
-        @params:
-            ts: current timestamp to compare freshness
-        '''
-        assert ts > max(self.tss), "ts {:.3f}s".format(ts) + str(self.tss)
-        delta_t = [ts - t if t != 0 else 0 for t in self.tss]
-        return np.power(self.fresh_base, delta_t)
+#     def put(self, ts, value):
+#         # with P=p we store this new sample
+#         if random.random() > self.p: return
 
-    def put(self, ts, value):
-        # with P=p we store this new sample
-        if random.random() > self.p: return
-
-        # newly added sample should always be fresher than registered samples
-        assert ts > max(self.tss)
+#         # newly added sample should always be fresher than registered samples
+#         assert ts > max(self.tss)
         
-        index = random.randint(0, self.table_mask) # get index to store
+#         index = random.randint(0, self.table_mask) # get index to store
 
-        # store ts-1e-9 so that no assertion is triggered when several samples are stored at the same time
-        self.tss[index] = ts-1e-9 
-        self.values[index] = value
+#         # store ts-1e-9 so that no assertion is triggered when several samples are stored at the same time
+#         self.tss[index] = ts-1e-9 
+#         self.values[index] = value
 
-    def get_value_variance(self):
-        return self.values.std()**2
+#     def get_value_variance(self):
+#         return self.values.std()**2
 
-    def summary(self, ts):
-        res = {}
-        assert ts >= max(self.tss), "ts={:.3f}s, max(tss)={:.3f}s".format(ts, max(self.tss))
-        res['avg'] = self.values.mean()
-        res['std'] = self.values.std()
-        res['p90'] = np.percentile(self.values, 90)
-        freshness = self.__get_freshness(ts)
-        values_discounted = np.multiply(self.values, freshness)
-        res['avg_disc'] = values_discounted.sum() / freshness.sum()
-        res['avg_decay'] = values_discounted.mean()
-        return res
+#     def summary(self, ts):
+#         res = {}
+#         assert ts >= max(self.tss), "ts={:.3f}s, max(tss)={:.3f}s".format(ts, max(self.tss))
+#         res['avg'] = self.values.mean()
+#         res['std'] = self.values.std()
+#         res['p90'] = np.percentile(self.values, 90)
+#         freshness = self.__get_freshness(ts)
+#         values_discounted = np.multiply(self.values, freshness)
+#         res['avg_disc'] = values_discounted.sum() / freshness.sum()
+#         res['avg_decay'] = values_discounted.mean()
+#         return res
 
-    def get_info(self):
-        res = ["Buffer size: {}".format(self.size)]
-        res.append('{:<8s}'.format('Times:') +
-              ' |'.join(["{: > 7.3f}".format(t_) for t_ in self.tss]))
-        res.append('{:<8s}'.format('Values:') +
-              ' |'.join(["{: > 7.3f}".format(t_) for t_ in self.tss]))
-        return '\n'.join(res)
+#     def get_info(self):
+#         res = ["Buffer size: {}".format(self.size)]
+#         res.append('{:<8s}'.format('Times:') +
+#               ' |'.join(["{: > 7.3f}".format(t_) for t_ in self.tss]))
+#         res.append('{:<8s}'.format('Values:') +
+#               ' |'.join(["{: > 7.3f}".format(t_) for t_ in self.tss]))
+#         return '\n'.join(res)
 
-class OtherSamplingBuffer(object):
+class SamplingBuffer(object):
     '''
     @brief:
-        A simple implementation of reservoir sampling buffer which consists of a list of (ts, value)
-        In addition to the reservoir sampling buffer, it has the function sample() which samples values from a dictionary
+        A simple implementation of sampling buffer which consists of a list of (ts, value)
+        The sampling buffer has 2 ways of sampling:
+            - Reservoir sampling (used to collect FCTs)
+            - Sampling k elements from a dictionnay (Used to collect flow durations)
     '''
     def __init__(self, size, dict=None, p=1., fresh_base=0.9):
         self.fresh_base = fresh_base
@@ -886,6 +887,9 @@ class NodeStatelessLB(Node):
                     False: randomly pick one from bucket
                     2: use 2 tuple ecmp
                     5: use 5 tuple ecmp
+                layer:
+                    1: its children are servers
+                    2 or more: its children are not servers
             '''
         # initialize arguments
         super().__init__(id, debug)
@@ -904,7 +908,6 @@ class NodeStatelessLB(Node):
         self.child_prefix = child_prefix
         self.layer=layer
         NodeStatelessLB.reset(self)
-
 
     def reset(self):
         '''
@@ -1001,7 +1004,7 @@ class NodeLB(NodeStatelessLB):
                 self._init_weights[child_ids] = [w for i, w in weights.items() if i in child_ids]
             else:
                 raise NotImplementedError   
-            # normalize weights (desactivated)
+            #normalize weights (desactivated)
             #self._init_weights /= sum(self._init_weights)
         self.reward_fn = reward_options[reward_option]
         self.lb_period = lb_period
@@ -1025,72 +1028,62 @@ class NodeLB(NodeStatelessLB):
         self._counters = {
             'n_flow_on': np.zeros(self.max_n_child)
         }
-        self._reservoir = {
-            k: [ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)] for k in RESERVOIR_AS_KEYS
-        }
-        self._reservoir.update({k: ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for k in RESERVOIR_LB_KEYS})
+        # self._reservoir = {
+        #     k: [ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)] for k in RESERVOIR_AS_KEYS
+        # }
+        # self._reservoir.update({k: ReservoirSamplingBuffer(RESERVOIR_BUFFER_SIZE) for k in RESERVOIR_LB_KEYS})
         self._res_max_ts = 0.
-        self._other = {
-             k: [OtherSamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)] for k in RESERVOIR_AS_KEYS
+        self._samplingBuffer = {
+            k: [SamplingBuffer(RESERVOIR_BUFFER_SIZE) for _ in range(self.max_n_child)] for k in RESERVOIR_AS_KEYS
         }
-        self._other.update({k: OtherSamplingBuffer(RESERVOIR_BUFFER_SIZE) for k in RESERVOIR_LB_KEYS})
+        self._samplingBuffer.update({k: SamplingBuffer(RESERVOIR_BUFFER_SIZE) for k in RESERVOIR_LB_KEYS})
 
         if self.debug > 1:
             print("in NodeLB kickoff node {}".format(self.id))
         self.register_event(random.uniform(1e-6, 1e-5), 'lb_step', {'node_id': self.id}) # kickoff
         
-    def __update_res_fd(self, ts):
-        '''
-        @brief:
-            update flow duration reservoir buffer
-        '''
-        
-        for child_id in self.child_ids:
-            if child_id == 5:
-                self._other['fd'][child_id].sample(ts, self._tracked_flows, child_id)
-                print('sampler')
-                print(self._other['fd'][child_id].summary(ts))
-                print('reservoir')
-                print(self._reservoir['fd'][child_id].summary(ts))
-                
-                #print(self._reservoir['fd'][child_id].values)
-        
-        
-        assert self._res_max_ts <= ts, "current ts {:.7f}s, res_max_ts {:.7f}s".format(
-            ts, self._res_max_ts)
-        # make ts lower bound larger than all samples in reservoir buffer
-        self._res_max_ts += 1e-9
-        if self.debug > 2:
-            print('=== ({:.3f}s) LB {}: before update reservoir {} ==='.format(
-                ts, self.id, 'fd'))
-            for i in self.child_ids:
-                print('--- {} {} ---'.format(self.child_prefix, i))
-                print(self._reservoir['fd'][i].get_info())
+    # def __update_res_fd(self, ts):
+    #     '''
+    #     @brief:
+    #         desactivated
+    #         update flow duration reservoir buffer
+    #     '''
 
-        tv_pairs = []
-        for t_begin, _, child_id in self._tracked_flows.values():
-            tss_ = np.random.uniform(self._res_max_ts, ts, random.randint(
-                0, RESERVOIR_FD_PACKET_DENSITY))  # randomly sample several timestamps
-            values_ = [t_ - t_begin for t_ in tss_]
-            for t_, v_ in zip(tss_, values_):
-                if v_ > 1e-2:
-                    heappush(tv_pairs, (t_, (v_, child_id)))
-        while len(tv_pairs) > 0:
-            if self.debug > 2:
-                print("current ts {:.7f}s, res_max_ts {:.7f}s".format(
-                    ts, self._res_max_ts))
-                print(">> tv_pairs:", tv_pairs)
-            t_, (v_, child_id) = heappop(tv_pairs)
-            self._reservoir['fd'][child_id].put(t_, v_)
-        try:
-            self._res_max_ts = t_
-        except NameError:
-            if self.debug > 2:
-                print('=== ({:.3f}s) LB {}: after update reservoir {} ==='.format(
-                    ts, self.id, 'fd'))
-                for i in self.child_ids:
-                    print('--- {} {} ---'.format(self.child_prefix, i))
-                    print(self._reservoir['fd'][i].get_info())
+    #     assert self._res_max_ts <= ts, "current ts {:.7f}s, res_max_ts {:.7f}s".format(
+    #         ts, self._res_max_ts)
+    #     # make ts lower bound larger than all samples in reservoir buffer
+    #     self._res_max_ts += 1e-9
+    #     if self.debug > 2:
+    #         print('=== ({:.3f}s) LB {}: before update reservoir {} ==='.format(
+    #             ts, self.id, 'fd'))
+    #         for i in self.child_ids:
+    #             print('--- {} {} ---'.format(self.child_prefix, i))
+    #             print(self._reservoir['fd'][i].get_info())
+
+    #     tv_pairs = []
+    #     for t_begin, _, child_id in self._tracked_flows.values():
+    #         tss_ = np.random.uniform(self._res_max_ts, ts, random.randint(
+    #             0, RESERVOIR_FD_PACKET_DENSITY))  # randomly sample several timestamps
+    #         values_ = [t_ - t_begin for t_ in tss_]
+    #         for t_, v_ in zip(tss_, values_):
+    #             if v_ > 1e-2:
+    #                 heappush(tv_pairs, (t_, (v_, child_id)))
+    #     while len(tv_pairs) > 0:
+    #         if self.debug > 2:
+    #             print("current ts {:.7f}s, res_max_ts {:.7f}s".format(
+    #                 ts, self._res_max_ts))
+    #             print(">> tv_pairs:", tv_pairs)
+    #         t_, (v_, child_id) = heappop(tv_pairs)
+    #         self._reservoir['fd'][child_id].put(t_, v_)
+    #     try:
+    #         self._res_max_ts = t_
+    #     except NameError:
+    #         if self.debug > 2:
+    #             print('=== ({:.3f}s) LB {}: after update reservoir {} ==='.format(
+    #                 ts, self.id, 'fd'))
+    #             for i in self.child_ids:
+    #                 print('--- {} {} ---'.format(self.child_prefix, i))
+    #                 print(self._reservoir['fd'][i].get_info())
 
     def calcul_reward(self, ts, reward_field=REWARD_FEATURE):
         '''
@@ -1105,8 +1098,7 @@ class NodeLB(NodeStatelessLB):
         # initialization
         res = self._counters
         #for k, v in self._reservoir.items():
-        for k, v in self._other.items():
-        
+        for k, v in self._samplingBuffer.items():
             # for server reservoir buffers
             if isinstance(v, list):
                 summaries = []
@@ -1217,7 +1209,7 @@ class NodeLB(NodeStatelessLB):
         fct = ts - t_begin
         assert fct > 0
         #self._reservoir['fct'][child_id].put(ts, fct)
-        self._other['fct'][child_id].put(ts, fct)
+        self._samplingBuffer['fct'][child_id].put(ts, fct)
 
     def add_child(self, child_id, weights):
         if not isinstance(child_id, list): child_id = [child_id] # convert single as id to a list
@@ -1237,14 +1229,17 @@ class NodeLB(NodeStatelessLB):
 
 
     def switch_child(self, child_id_add, child_id_remove, weights):
-        
+        '''
+        @brief:
+            Equivalent to add_child and remove_child. Bucket table is recomputed only once for all the changes.
+        '''
         if not weights:
             weights = [np.mean(self.weights[self.child_ids])] * len(child_id_add)
             
         for id_, w_ in zip(child_id_add, weights):
             self.weights[id_] = w_
-        
         self.child_ids += child_id_add
+        
         for id_ in child_id_remove:
             self.child_ids.remove(id_)
             self.weights[id_] = 0.
@@ -1414,9 +1409,9 @@ class NodeClient(Node):
                 res[k] = v.tolist()
         self.summary.append(res)
         
-        #print('fairness-avg : {}'.format(res['fairness-avg']))
-        #print('over-avg : {}'.format(res['over-avg']))
-        #print('fct-avg : {}'.format(res['fct-avg']))
+        print('fairness-avg : {}'.format(res['fairness-avg']))
+        print('over-avg : {}'.format(res['over-avg']))
+        print('fct-avg : {}'.format(res['fct-avg']))
             
         return res
         
@@ -1467,14 +1462,19 @@ class NodeClient(Node):
             triggered by event 'clt_update_in_traffic'
         '''
         self.app_config.update(app_config)
-        if DEBUG > 0:
+        if self.debug > 0:
             print(">> @client {} update input traffic info to {}".format(
                 self.id, self.app_config))
         self.app_engine.update(**self.app_config)  
 
 class ClusteringAgent(object):
     #Only implemented for 2 Layers
-    
+    '''
+    @brief:
+        A clustering agent which collects features and attempt to create homogenous clusters
+        Only implemented for a 2-layer hierarchical implementation
+    '''
+
     global event_buffer
     
     def __init__(self, nodes, node_config, method=CLUSTERING_METHOD, memory = 16, debug=0):

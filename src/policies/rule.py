@@ -1,17 +1,14 @@
-from ast import Raise
 import random
 import time
 from config.global_conf import ACTION_DIM, RENDER, LB_PERIOD, B_OFFSET, RENDER_RECEIVE, HEURISTIC_ALPHA, REWARD_OPTION
-from config.user_conf import *
 from common.entities import NodeLB
 import numpy as np
 
 class NodeLBLSQ(NodeLB):
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', po2=False, layer=1, weights2= None, weighted = False, b_offset=B_OFFSET, lb_period = LB_PERIOD, debug=0):
-        super().__init__(id, child_ids, bucket_size, weights, max_n_child, T0, reward_option, ecmp, child_prefix= child_prefix, layer = layer, debug = debug, weights2 = weights2)
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', po2=False, layer=1, b_offset=B_OFFSET, lb_period = LB_PERIOD, debug=0):
+        super().__init__(id, child_ids, bucket_size, weights, max_n_child, T0, reward_option, ecmp, child_prefix= child_prefix, layer = layer, debug = debug)
         self.po2 = po2 # power-of-2-choices
-        self.weighted = weighted
         self.b_offset = b_offset
 
 
@@ -28,13 +25,8 @@ class NodeLBLSQ(NodeLB):
             if self.debug > 1:
                 print("n_flow_on chosen {} out of -".format(child_id), n_flow_on_2)
         else:
-            if self.weighted == True:
-                score = [(self.b_offset+n_flow_on[i])/self.weights[i] for i in self.child_ids]
-                min_n_flow = min(score)
-                n_flow_map = zip(self.child_ids, score)
-            else:
-                min_n_flow = n_flow_on[self.child_ids].min()
-                n_flow_map = zip(self.child_ids, n_flow_on[self.child_ids])
+            min_n_flow = n_flow_on[self.child_ids].min()
+            n_flow_map = zip(self.child_ids, n_flow_on[self.child_ids])
             min_ids = [k for k, v in n_flow_map if v == min_n_flow]
             child_id = random.choice(min_ids)
             n_flow_map = zip(self.child_ids, n_flow_on[self.child_ids])
@@ -49,7 +41,7 @@ class NodeLBSED(NodeLB):
     @brief:
         Shortest Expected Delay (SED) assigns server based on (queue_len+1)/weight.
     '''
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, layer=1, weights2= None, lb_period = LB_PERIOD, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', po2=False, b_offset=B_OFFSET, layer=1, weights2= None, lb_period = LB_PERIOD, debug=0):
         super().__init__(id, child_ids, bucket_size, weights, max_n_child, T0, reward_option, ecmp, child_prefix= child_prefix, layer = layer, debug = debug, weights2 = weights2)
         self.po2 = po2  # power-of-2-choices
         self.b_offset = b_offset
@@ -89,9 +81,9 @@ class NodeLBSRT(NodeLB):
         Shortest remaining time (SRT) assigns AS based on sum(cpu_processing_time)/#cpu + sum(io_processing_time)/#io
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer = layer, debug = debug)
         self.po2 = po2
 
     def choose_child(self, flow, t_rest_all):
@@ -178,9 +170,9 @@ class NodeLBGSQ(NodeLB):
         select AS based on global shortest queue
     '''
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', po2=False, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer = layer, debug = debug)
 
         self.po2 = po2
 
@@ -262,9 +254,9 @@ class NodeLBGSQ(NodeLB):
 
 class NodeLBActive(NodeLB):
 
-    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=2, ecmp=False, child_prefix='as', lb_period=LB_PERIOD, rtt_min=0.05, rtt_max=0.2, layer=1, debug=0):
+    def __init__(self, id, child_ids, bucket_size=65536, weights=None, max_n_child=ACTION_DIM, T0=time.time(), reward_option=REWARD_OPTION, ecmp=False, child_prefix='as', lb_period=LB_PERIOD, rtt_min=0.05, rtt_max=0.2, layer=1, debug=0):
         super().__init__(id, child_ids, bucket_size, weights,
-                         max_n_child, T0, reward_option, ecmp, child_prefix, layer, debug, lb_period)
+                         max_n_child, T0, reward_option, ecmp, child_prefix, layer = layer, debug = debug, lb_period = lb_period)
 
         self.alpha = HEURISTIC_ALPHA
         self.rtt_min = rtt_min

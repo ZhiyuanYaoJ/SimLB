@@ -8,3 +8,4 @@ A list of papers or projects have been produced based on this simulator:
 - [Charon: Load-Aware Load-Balancing in P4](https://arxiv.org/abs/2110.14389) (branch: charon)
 - [Reinforced Workload Distribution Fairness](https://arxiv.org/abs/2111.00008) (branch: rlb)
 - [HLB: Towards Load-Aware Load Balancing] (branch: hlb)
+- [Scaling Reinforcement Learning for Load Balancing in Data Centers] (branch: Hierarchical-RLB)
