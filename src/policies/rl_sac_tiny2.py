@@ -8,9 +8,14 @@ from policies.model.sac_v2_2 import *
 
 
 from functools import wraps
-i=0
 t0=0
+i=0
 def timeit(func):
+    '''
+    @brief:
+        This decorator helps to time the program
+        add @timeit before function to print computation time
+    '''
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()
@@ -19,10 +24,9 @@ def timeit(func):
         total_time = end_time - start_time
         #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
         global t0, i
-        if total_time>0.0:
-            t0 += total_time
-            i +=1
-            print('Result {}'.format(total_time))
+        t0 += total_time
+        i += 1
+        print(t0)
         return result
     return timeit_wrapper
 
@@ -42,7 +46,7 @@ DETERMINISTIC = False
 class NodeRLBSAC_Tiny2(NodeLB):
     '''
     @brief:
-        RL solution for simulated load balancer with SAC model.
+        RL solution for simulated load balancer with SAC model implementing tiny-RL.
     '''
 
     def __init__(

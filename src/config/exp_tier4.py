@@ -73,13 +73,20 @@ def generate_node_config_tier4(
     # for i in as_config:
     #     as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})
         
-    #Initialization with set manually weights
-    # as_config[0].update({'n_worker': 1})     
-    # as_config[1].update({'n_worker': 2})
+    #Initialization with statically set weights
     try:
-        for i in range (8):
-            for j in range (8):    
-                as_config[8*i+j].update({'n_worker': i+1})     
+        if n_as == 64:
+            for i in range (8):
+                for j in range (8):    
+                    as_config[8*i+j].update({'n_worker': i+1})     
+        if n_as == 16:
+            for i in range (4):
+                for j in range (4):    
+                    as_config[4*i+j].update({'n_worker': i+1})     
+        if n_as == 4:
+            for i in range (2):
+                for j in range (2):    
+                    as_config[2*i+j].update({'n_worker': i+1})     
     except:
         pass 
     

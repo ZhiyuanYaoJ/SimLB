@@ -25,9 +25,10 @@ import warnings
 
 
 Event = namedtuple('Event', 'time name added_by kwargs')
+
+from functools import wraps
 t0=0
 i=0
-from functools import wraps
 def timeit(func):
     '''
     @brief:
@@ -340,7 +341,7 @@ class PriorityQueue:
 class RingBuffer:
     """
     @brief:
-        A ring buffer used to compute the average of the last N samples of feature
+        A ring buffer used to compute the average of the last N samples of features
     """
     def __init__(self,capacity):
         self.queue = [0]*capacity
@@ -1478,8 +1479,8 @@ class ClusteringAgent(object):
     global event_buffer
     
     def __init__(self, nodes, node_config, method=CLUSTERING_METHOD, memory = 16, debug=0):
+        
         self.method=method
-
         self.debug = 1
         self.counter = 1
         self.kmeans = None
@@ -1521,12 +1522,19 @@ class ClusteringAgent(object):
         self.register_event(1e-6, 'cluster_step', {'cluster_agent':self}) # kickoff
         
     def estimate(self, ts, nodes):
-        
+        '''
+        @brief:
+        Assigns weights to the servers, as the avergae of the feature collected in the ring buffer
+        '''
         avg = self.ring_buffer.average()
         if avg is not None:
             self.weights = avg
      
     def fill_buffer(self, ts, nodes):
+        '''
+        @brief:
+        Add features to the ring buffer
+        '''
         features = np.zeros(self.n_as)
         for lb in self.lbss:
             parent = nodes['lb{}'.format(lb)]
@@ -1535,52 +1543,86 @@ class ClusteringAgent(object):
         self.ring_buffer.put(features)
          
     def kmeans_3steps(self, nodes, threshold = 0.01, inertia = 10): # good at the beginning but increasingly poor at the end
-            ass = []
-            source = []
-            weights = []
-            change = False
-            clusters = {lb:[] for lb in self.lbss}
+        '''
+        @brief:
+        Creates a clustering of servers with the weights set in the function estimate().
+        The initial clustering (first time function is called) uses the k-means algorithm on weights.
+        The other times:
+            -Step 1: compute a new clustering {C_j'} with the previous cluster centers {C_j} as initialization
+            -Step 2: For each node which changed cluster i->j', if the distance to Cj' is less than $threshold$ smaller than the distance to Ci', assign it to cluster i'
+            -Step 3: Compute new centroids 
+            This mechanism prevents too frequent changes in the clustering if the gain is too small (smaller than $threshold$ in distance)
             
-            for lb in self.lbss:
-                parent = nodes['lb{}'.format(lb)]
-                for child_id in parent.child_ids:
-                    ass.append(child_id)
-                    source.append(lb)
-                    #weights.append(float(nodes['as{}'.format(child_id)].n_worker))
-                    weights.append(self.weights[child_id])
-                    clusters[lb].append(self.weights[child_id])
-            weights=np.array(weights)
-            weights+=self.noise
-            
-            if self.cluster_centers is None:
-                kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
-                destination = np.array(self.lbss)[kmeans.labels_]
-                self.cluster_centers = kmeans.cluster_centers_
-                change = True
-                
-            #Other times
-            else:
-                self.cluster_centers = np.array([np.mean(clusters[lb]) for lb in self.lbss])
-                print(self.cluster_centers)
-                init = self.cluster_centers.reshape(-1,1)
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('ignore')
-                    new_kmeans = KMeans(n_clusters=self.n_lbs, init = init).fit(weights.reshape(-1,1))
-                new_centers = new_kmeans.cluster_centers_.reshape(-1)
-                destination = np.array(self.lbss)[new_kmeans.labels_]
-                for i,pred in enumerate(new_kmeans.labels_):
-                    if self.inertia[ass[i]] >0 : self.inertia[ass[i]] -= 1
-                    if source[i] != destination[i] and abs(weights[i]-self.cluster_centers[self.lbss.index(source[i])]) - abs(weights[i]-new_centers[pred]) < threshold: # if too small a difference, don't consider it. This improves stability
-                        destination[i] = source[i]
-                    elif source[i] != destination[i] and self.inertia[ass[i]] >0: 
-                        destination[i] = source[i]
-                    elif source[i] != destination[i]: 
-                        change = True
-                        self.inertia[ass[i]] = inertia
-                #self.cluster_centers = np.array([mean([weights[i] for i in range(len(weights)) if (self.lbss.index(destination[i]) == j)]) for j in range(len(self.lbss))])
-            return change, zip(ass, source, destination)
+        Input:
+            -Threshold: limits frequent changes at the cost of sub-optimal clustering
+            -Inertia: a server can only be changed to another cluster $inertia$ steps after its previous change. Adds stability to the system, as normal behavior is undefined after a change. 
         
-    def heuristic_combined(self, nodes, threshold = 0.3, inertia = 10): # 
+        Output:
+            -change: True if at least one change, else False
+            -(server id, previous cluster, next cluster)
+        '''
+        ass = []
+        source = []
+        weights = []
+        change = False
+        clusters = {lb:[] for lb in self.lbss}
+        
+        for lb in self.lbss:
+            parent = nodes['lb{}'.format(lb)]
+            for child_id in parent.child_ids:
+                ass.append(child_id)
+                source.append(lb)
+                #weights.append(float(nodes['as{}'.format(child_id)].n_worker))
+                weights.append(self.weights[child_id])
+                clusters[lb].append(self.weights[child_id])
+        weights=np.array(weights)
+        weights+=self.noise
+        
+        if self.cluster_centers is None:
+            kmeans = KMeans(n_clusters=self.n_lbs).fit(weights.reshape(-1,1))
+            destination = np.array(self.lbss)[kmeans.labels_]
+            self.cluster_centers = kmeans.cluster_centers_
+            change = True
+            
+        #Other times
+        else:
+            self.cluster_centers = np.array([np.mean(clusters[lb]) for lb in self.lbss])
+            print(self.cluster_centers)
+            init = self.cluster_centers.reshape(-1,1)
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                new_kmeans = KMeans(n_clusters=self.n_lbs, init = init).fit(weights.reshape(-1,1))
+            new_centers = new_kmeans.cluster_centers_.reshape(-1)
+            destination = np.array(self.lbss)[new_kmeans.labels_]
+            for i,pred in enumerate(new_kmeans.labels_):
+                if self.inertia[ass[i]] >0 : self.inertia[ass[i]] -= 1
+                if source[i] != destination[i] and abs(weights[i]-self.cluster_centers[self.lbss.index(source[i])]) - abs(weights[i]-new_centers[pred]) < threshold: # if too small a difference, don't consider it. This improves stability
+                    destination[i] = source[i]
+                elif source[i] != destination[i] and self.inertia[ass[i]] >0: 
+                    destination[i] = source[i]
+                elif source[i] != destination[i]: 
+                    change = True
+                    self.inertia[ass[i]] = inertia
+            #self.cluster_centers = np.array([mean([weights[i] for i in range(len(weights)) if (self.lbss.index(destination[i]) == j)]) for j in range(len(self.lbss))])
+        return change, zip(ass, source, destination)
+        
+    def heuristic_combined(self, nodes, threshold = 0.3, inertia = 10):
+        '''
+        @brief:
+        Creates a clustering of servers with the weights set in the function estimate().
+        The initial clustering (first time function is called) uses the k-means algorithm on weights.
+        The other times:
+            -Compute the average of features of each cluster.
+            -If the feature of a server is too far from the average, it is an outlier and is changed to a neighbouring cluster.
+            
+        Input:
+            -Threshold: limits frequent changes at the cost of sub-optimal clustering
+            -Inertia: a server can only be changed to another cluster $inertia$ steps after its previous change. Adds stability to the system, as normal behavior is undefined after a change. 
+        
+        Output:
+            -change: True if at least one change, else False
+            -(server id, previous cluster, next cluster)
+        '''
         ass = []
         source = []
         destination = []
@@ -1620,6 +1662,20 @@ class ClusteringAgent(object):
         return change, zip(ass, source, destination)    
         
     def heuristic_ordered(self, nodes, threshold = 0.3, inertia = 10): #poor at the beginning but increasingly good at the end
+        '''
+        @brief:
+        Creates a clustering of servers with the weights set in the function estimate().
+            -Compute the average of features of each cluster.
+            -If the feature of a server is too far from the average, it is an outlier and is changed to a neighbouring cluster.
+            
+        Input:
+            -Threshold: limits frequent changes at the cost of sub-optimal clustering
+            -Inertia: a server can only be changed to another cluster $inertia$ steps after its previous change. Adds stability to the system, as normal behavior is undefined after a change. 
+        
+        Output:
+            -change: True if at least one change, else False
+            -(server id, previous cluster, next cluster)
+        '''
         ass = []
         source = []
         destination = []
@@ -1654,6 +1710,10 @@ class ClusteringAgent(object):
         return change, zip(ass, source, destination)  
 
     def evaluate(self, ts, nodes, method='kmeans'):
+        '''
+        @brief:
+        Assigns weights with the features collected in the ringbuffer, and computes a clustering based on these weights.
+        '''
         change = False
         array = []
         method = 'heuristic_ordered'
@@ -1685,7 +1745,11 @@ class ClusteringAgent(object):
         self.register_event(ts + CLUSTERING_PERIOD, 'cluster_step', {'cluster_agent':self} )
         
     def change_node(self, ts, nodes, array, debug=1):
-
+        '''
+        @brief:
+        Adds to the event queue the changes in the configuration computed wit the clustering algorithm
+        '''
+        
         change = {i:([], [], []) for i in self.lbss} # load balancer:([nodes to add], [nodes to remove], [weights to add])
         
         for a in array:

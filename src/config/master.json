@@ -1,6 +1,6 @@
 {
-    "experiment": "master",
-    "seed": 44,
+    "experiment": "hierarchical",
+    "seed": 47,
     "nodes": {
         "as": {
             "n": 64,

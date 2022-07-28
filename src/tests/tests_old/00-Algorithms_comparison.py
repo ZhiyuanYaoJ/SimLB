@@ -69,7 +69,7 @@ def add_rates(tasks, rates):
 
 seed = 89
 
-n_episode = 20
+n_episode = 15
 first_episode_id = 0
 t_episode = 60
 t_episode_inc = 5
@@ -86,7 +86,7 @@ if __name__ == "__main__":  # confirms that the code is under main function
         #=== rule ===#
         # "ecmp", # Equal-Cost Multi-Path (ECMP)
         # "wcmp", # Weighted-Cost Multi-Path (WCMP)
-        "lsq", # Local shortest queue (LSQ)
+        # "lsq", # Local shortest queue (LSQ)
         # "lsq2", # LSQ + power-of-2-choices
         # "sed", # Shortest Expected Delay
         # "sed2", # LSQ + power-of-2-choices
@@ -112,13 +112,13 @@ if __name__ == "__main__":  # confirms that the code is under main function
         #"geom-sed", # geometry-based algorithm
         #"geom-sed-w", # geometry-based algorithm
         # === reinforcement learning ===#
-        "rlb-sac", # SAC model
-        "rlb-sac-tiny", # SAC tiny-model
-        # "rlb-sac-tiny2", # SAC tiny-model
+        # "rlb-sac", # SAC model
+        # "rlb-sac-tiny", # SAC tiny-model
+        'rlb-sac2'
     ]
     methods_hierarchical = [
         # === Hierarchicak methods learning ===#
-        ("rlb-sac","lsq", False), # Top LB method, Secondary LB method, clustering agent?
+        # ("rlb-sac","lsq", False), # Top LB method, Secondary LB method, clustering agent?
     ]
     configs = [ 
         # (1,64), # 1LB, 64 servers

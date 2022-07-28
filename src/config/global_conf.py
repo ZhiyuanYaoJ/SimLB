@@ -10,7 +10,7 @@ import numpy as np
 import argparse
 np.set_printoptions(linewidth=np.inf, suppress = True)
 
-SEED = 44  # random seed
+SEED = 47  # random seed
 random.seed(SEED)
 np.random.seed(SEED)
 

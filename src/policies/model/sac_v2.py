@@ -19,15 +19,22 @@ from torch.distributions import Normal
 
 import struct
 
+from config.global_conf import FEATURE_AS_ALL
+
 #--- MACROS ---#
 DEVICE = torch.device("cpu")
 REPLAY_BUFFER_SIZE = 3000
 DEBUG = 0
 
 from functools import wraps
-i=0
 t0=0
+i=0
 def timeit(func):
+    '''
+    @brief:
+        This decorator helps to time the program
+        add @timeit before function to print computation time
+    '''
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()
@@ -36,12 +43,9 @@ def timeit(func):
         total_time = end_time - start_time
         #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
         global t0, i
-        if total_time>0.0001:
-            t0 += total_time
-            i +=1
-            print('Result {}'.format(total_time))
-        #if i%10 == 0:
-            #print(t0)
+        t0 += total_time
+        i += 1
+        print(t0)
         return result
     return timeit_wrapper
 
@@ -336,7 +340,6 @@ class PolicyNetwork(nn.Module):
         active_as, feature_lb, feature_as, _ = state  # ignore gt
         feature_lb = torch.FloatTensor(feature_lb).unsqueeze(0).to(DEVICE)
         feature_as = torch.FloatTensor(feature_as).unsqueeze(0).to(DEVICE)
-
         mean, log_std = self.forward(([active_as], feature_lb, feature_as))
         std = log_std.exp()
 
@@ -351,6 +354,9 @@ class PolicyNetwork(nn.Module):
         action2 = action_mask * (torch.tanh(mean) + 1 + 1e-6)
         mean = action_mask * mean
         std = action_mask * std
+        
+        k = FEATURE_AS_ALL.index('res_fct_avg_disc')
+        print('res_fct_avg_disc = {}'.format(feature_as.T[k].squeeze().tolist()))
         print('m = {}'.format(action2[0][0:len(active_as)+1].detach().numpy()))
         print('std = {}'.format(std[0][0:len(active_as)+1].detach().numpy()))
         # print('all = {}'.format(action[0][0:len(active_as)+1].detach().numpy()))

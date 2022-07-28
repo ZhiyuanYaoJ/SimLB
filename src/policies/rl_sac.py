@@ -6,11 +6,15 @@ from config.global_conf import ACTION_DIM, RENDER, DISPLAY, FEATURE_AS_ALL, FEAT
 from common.entities import NodeLB
 from policies.model.sac_v2 import *
 
-c=0
 from functools import wraps
-i=0
 t0=0
+i=0
 def timeit(func):
+    '''
+    @brief:
+        This decorator helps to time the program
+        add @timeit before function to print computation time
+    '''
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()
@@ -19,10 +23,9 @@ def timeit(func):
         total_time = end_time - start_time
         #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
         global t0, i
-        if total_time>0.0:
-            t0 += total_time
-            i +=1
-            print('Result {}'.format(t0))
+        t0 += total_time
+        i += 1
+        print(t0)
         return result
     return timeit_wrapper
 

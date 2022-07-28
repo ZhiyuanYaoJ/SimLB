@@ -25,9 +25,14 @@ REPLAY_BUFFER_SIZE = 3000
 DEBUG = 0
 
 from functools import wraps
-i=0
 t0=0
+i=0
 def timeit(func):
+    '''
+    @brief:
+        This decorator helps to time the program
+        add @timeit before function to print computation time
+    '''
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
         start_time = time.perf_counter()
@@ -36,12 +41,9 @@ def timeit(func):
         total_time = end_time - start_time
         #print(f'Function {func.__name__} Took {total_time:.4f} seconds')
         global t0, i
-        if total_time>0.0001:
-            t0 += total_time
-            i +=1
-            print('Result {}'.format(total_time))
-        #if i%10 == 0:
-            #print(t0)
+        t0 += total_time
+        i += 1
+        print(t0)
         return result
     return timeit_wrapper
 
@@ -298,9 +300,9 @@ class PolicyNetwork(nn.Module):
 
         x = F.elu(self.linear1(x))
         x = self.ln1(x)
-        # x=F.elu(self.linear2(x))
-        # x=F.elu(self.linear3(x))
-        x = F.elu(self.linear4(x))
+        x=F.elu(self.linear2(x))
+        x=F.elu(self.linear3(x))
+        # x = F.elu(self.linear4(x))
         mean = self.mean_linear(x)
         log_std = self.log_std_linear(x)
         log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)

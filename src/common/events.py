@@ -51,9 +51,10 @@ def as_periodic_log(nodes, ts, node_ids, interval):
         #print('Get observation: {}'.format(nodes['lb0'].get_observation(ts)))
         # print('Periodic check: {} '.format(str(datetime.now())) +'|'.join(['{} {:.6f}'.format(node_id, nodes[node_id].get_t_rest_total(ts)) for node_id in node_ids]))
         
-        for k,v in array.items():
-            if not hasattr(v, '__iter__') : continue
-            print('{} '.format(k) +'|'.join(['{:.3f}'.format(a) for a in v]))
+        # for k,v in array.items():
+        #     if not hasattr(v, '__iter__') : continue
+        #     # if k not in ['res_fct_avg_disc', 'n_flow_on']: continue
+        #     print('{} '.format(k) +'|'.join(['{:.3f}'.format(a) for a in v]))
     print(' ')
     event_buffer.put(Event(ts+interval, 'as_periodic_log', 'sys-admin', {'node_ids': node_ids, 'interval': interval}))
 

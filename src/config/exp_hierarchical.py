@@ -98,8 +98,7 @@ def generate_node_config_hierarchical(
     # for i in as_config:
     #     as_config[i].update({'n_worker': int(np.random.choice([1,2,4,8,16], p=n_worker_multiplier_distribution))})
         
-    #Initialization with set manually weights
- 
+    #Initialization with statically set weights
     try:
         if n_as == 64:
             for i in range (8):
@@ -109,7 +108,7 @@ def generate_node_config_hierarchical(
             for i in range (4):
                 for j in range (4):    
                     as_config[4*i+j].update({'n_worker': i+1})     
-        if n_as == 2:
+        if n_as == 4:
             for i in range (2):
                 for j in range (2):    
                     as_config[2*i+j].update({'n_worker': i+1})     
